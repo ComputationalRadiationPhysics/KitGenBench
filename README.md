@@ -1,9 +1,9 @@
-[![Actions Status](https://github.com/TheLartians/ModernCppStarter/workflows/MacOS/badge.svg)](https://github.com/TheLartians/ModernCppStarter/actions)
-[![Actions Status](https://github.com/TheLartians/ModernCppStarter/workflows/Windows/badge.svg)](https://github.com/TheLartians/ModernCppStarter/actions)
-[![Actions Status](https://github.com/TheLartians/ModernCppStarter/workflows/Ubuntu/badge.svg)](https://github.com/TheLartians/ModernCppStarter/actions)
-[![Actions Status](https://github.com/TheLartians/ModernCppStarter/workflows/Style/badge.svg)](https://github.com/TheLartians/ModernCppStarter/actions)
-[![Actions Status](https://github.com/TheLartians/ModernCppStarter/workflows/Install/badge.svg)](https://github.com/TheLartians/ModernCppStarter/actions)
-[![codecov](https://codecov.io/gh/TheLartians/ModernCppStarter/branch/master/graph/badge.svg)](https://codecov.io/gh/TheLartians/ModernCppStarter)
+[![Actions Status](https://github.com/chillenzer/MemBenchMC/workflows/MacOS/badge.svg)](https://github.com/chillenzer/MemBenchMC/actions)
+[![Actions Status](https://github.com/chillenzer/MemBenchMC/workflows/Windows/badge.svg)](https://github.com/chillenzer/MemBenchMC/actions)
+[![Actions Status](https://github.com/chillenzer/MemBenchMC/workflows/Ubuntu/badge.svg)](https://github.com/chillenzer/MemBenchMC/actions)
+[![Actions Status](https://github.com/chillenzer/MemBenchMC/workflows/Style/badge.svg)](https://github.com/chillenzer/MemBenchMC/actions)
+[![Actions Status](https://github.com/chillenzer/MemBenchMC/workflows/Install/badge.svg)](https://github.com/chillenzer/MemBenchMC/actions)
+[![codecov](https://codecov.io/gh/chillenzer/MemBenchMC/branch/master/graph/badge.svg)](https://codecov.io/gh/chillenzer/MemBenchMC)
 
 # MemBenchMC
 
@@ -58,7 +58,7 @@ pip install clang-format==14.0.6 cmake_format==0.6.11 pyyaml
 
 ### Build the documentation
 
-The documentation is automatically built and [published](https://thelartians.github.io/ModernCppStarter) whenever a [GitHub Release](https://help.github.com/en/github/administering-a-repository/managing-releases-in-a-repository) is created.
+The documentation is automatically built and [published](https://chillenzer.github.io/MemBenchMC) whenever a [GitHub Release](https://help.github.com/en/github/administering-a-repository/managing-releases-in-a-repository) is created.
 To manually build documentation, call the following command.
 
 ```bash
