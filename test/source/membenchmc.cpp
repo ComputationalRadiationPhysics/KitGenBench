@@ -16,6 +16,6 @@ TEST_CASE("MemBenchMC") {
 }
 
 TEST_CASE("MemBenchMC version") {
-  static_assert(std::string_view(MEMBENCHMC_VERSION) == std::string_view("1.0"));
-  CHECK(std::string(MEMBENCHMC_VERSION) == std::string("1.0"));
+  static_assert(std::string_view(MEMBENCHMC_VERSION) == std::string_view("0.1"));
+  CHECK(std::string(MEMBENCHMC_VERSION) == std::string("0.1"));
 }
