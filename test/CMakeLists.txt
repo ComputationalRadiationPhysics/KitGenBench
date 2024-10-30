@@ -19,6 +19,12 @@ CPMAddPackage("gh:doctest/doctest@2.4.9")
 # TODO: This might need change!
 CPMAddPackage("gh:TheLartians/Format.cmake@1.7.3")
 
+CPMAddPackage(
+  NAME nlohmann_json
+  GITHUB_REPOSITORY nlohmann/json
+  VERSION 3.11.3 NO_TESTS
+)
+
 if(TEST_INSTALLED_VERSION)
   find_package(MemBenchMC REQUIRED)
 else()
