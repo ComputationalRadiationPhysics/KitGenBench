@@ -1,5 +1,6 @@
 #include <membenchmc/membenchmc.h>
 #include <membenchmc/version.h>
+#include <unistd.h>
 
 #include <algorithm>
 #include <cstdio>
@@ -41,9 +42,25 @@ nlohmann::json getCPUInfo() {
   }
   return cpu_info;
 }
+std::string getHostName() {
+  char hostname[256];
+  gethostname(hostname, sizeof(hostname));
+  return std::string(hostname);
+}
+std::string getUserName() { return std::string(getlogin()); }
+
+nlohmann::json gatherMetadata() {
+  auto start_time = time(nullptr);
+  nlohmann::json metadata;
+  metadata["start_time"] = trim(std::ctime(&start_time));
+  metadata["host_name"] = getHostName();
+  metadata["user_name"] = getUserName();
+  metadata["cpu_info"] = getCPUInfo();
+  return metadata;
+}
 
 auto main(/*int argc, char** argv*/) -> int {
-  std::cout << getCPUInfo() << "\n";
+  std::cout << gatherMetadata() << "\n";
   //  const std::unordered_map<std::string, membenchmc::LanguageCode> languages{
   //      {"en", membenchmc::LanguageCode::EN},
   //      {"de", membenchmc::LanguageCode::DE},
