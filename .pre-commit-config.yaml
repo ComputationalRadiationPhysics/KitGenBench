@@ -1,0 +1,31 @@
+minimum_pre_commit_version: 4.0.1
+default_install_hook_types: [pre-commit, pre-push]
+repos:
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v19.1.2
+    hooks:
+      - id: clang-format
+        files: \.(cpp|h)
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: check-merge-conflict
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-toml
+      - id: check-yaml
+      - id: check-json
+      - id: mixed-line-ending
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+  - repo: https://github.com/Lucas-C/pre-commit-hooks
+    rev: v1.5.4
+    hooks:
+      - id: forbid-tabs
+        types_or: [file]
+        exclude_types: [rst]
+      - id: remove-tabs
+        types_or: [file]
+        exclude_types: [rst]
+      - id: forbid-crlf
+      - id: remove-crlf
