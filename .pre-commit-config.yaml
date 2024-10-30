@@ -29,3 +29,7 @@ repos:
         exclude_types: [rst]
       - id: forbid-crlf
       - id: remove-crlf
+  - repo: https://github.com/BlankSpruce/gersemi
+    rev: 0.17.0
+    hooks:
+      - id: gersemi

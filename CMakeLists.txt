@@ -1,19 +1,15 @@
 cmake_minimum_required(VERSION 3.14...3.22)
 
 # ---- Project ----
-project(
-  MemBenchMC
-  VERSION 0.1
-  LANGUAGES CXX
-)
+project(MemBenchMC VERSION 0.1 LANGUAGES CXX)
 
 # ---- Include guards ----
 
 if(PROJECT_SOURCE_DIR STREQUAL PROJECT_BINARY_DIR)
-  message(
-    FATAL_ERROR
-      "In-source builds not allowed. Please make a new directory (called a build directory) and run CMake from there."
-  )
+    message(
+        FATAL_ERROR
+        "In-source builds not allowed. Please make a new directory (called a build directory) and run CMake from there."
+    )
 endif()
 
 # ---- Add dependencies via CPM ----
@@ -22,10 +18,10 @@ endif()
 include(cmake/CPM.cmake)
 
 # PackageProject.cmake will be used to make our target installable
-CPMAddPackage("gh:TheLartians/PackageProject.cmake@1.8.0")
+cpmaddpackage("gh:TheLartians/PackageProject.cmake@1.8.0")
 
 # TODO: Add alpaka!
-CPMAddPackage(
+cpmaddpackage(
   NAME nlohmann_json
   GITHUB_REPOSITORY nlohmann/json
   VERSION 3.11.3 NO_TESTS
@@ -35,8 +31,16 @@ CPMAddPackage(
 
 # Note: globbing sources is considered bad practice as CMake's generators may not detect new files
 # automatically. Keep that in mind when changing files, or explicitly mention them here.
-file(GLOB_RECURSE headers CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h")
-file(GLOB_RECURSE sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp")
+file(
+    GLOB_RECURSE headers
+    CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h"
+)
+file(
+    GLOB_RECURSE sources
+    CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp"
+)
 
 # ---- Create library ----
 
@@ -44,23 +48,29 @@ file(GLOB_RECURSE sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/source/
 # target: add_library(${PROJECT_NAME} INTERFACE)
 add_library(${PROJECT_NAME} ${headers} ${sources})
 set_target_properties(
-  ${PROJECT_NAME}
-  PROPERTIES CXX_STANDARD 20
-             CXX_STANDARD_REQUIRED ON
-             CXX_EXTENSIONS OFF
+    ${PROJECT_NAME}
+    PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF
 )
 
 # being a cross-platform target, we enforce standards conformance on MSVC
-target_compile_options(${PROJECT_NAME} PUBLIC "$<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/permissive->")
+target_compile_options(
+    ${PROJECT_NAME}
+    PUBLIC "$<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/permissive->"
+)
 
 # TODO: Needs change!
 
 # Link dependencies
-target_link_libraries(${PROJECT_NAME} PRIVATE "$<BUILD_INTERFACE:nlohmann_json::nlohmann_json>")
+target_link_libraries(
+    ${PROJECT_NAME}
+    PRIVATE "$<BUILD_INTERFACE:nlohmann_json::nlohmann_json>"
+)
 
 target_include_directories(
-  ${PROJECT_NAME} PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
-                         $<INSTALL_INTERFACE:include/${PROJECT_NAME}-${PROJECT_VERSION}>
+    ${PROJECT_NAME}
+    PUBLIC
+        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include/${PROJECT_NAME}-${PROJECT_VERSION}>
 )
 
 # ---- Create an installable target ----
@@ -70,7 +80,7 @@ target_include_directories(
 # header paths
 string(TOLOWER ${PROJECT_NAME}/version.h VERSION_HEADER_LOCATION)
 
-packageProject(
+packageproject(
   NAME ${PROJECT_NAME}
   VERSION ${PROJECT_VERSION}
   NAMESPACE ${PROJECT_NAME}
