@@ -26,10 +26,7 @@ jobs:
           key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
 
       - name: configure
-        run: CXX="/usr/bin/g++-13" cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON -Sstandalone -Bbuild -DCMAKE_BUILD_TYPE=Debug
-
-      - name: compiler-id
-        run: /usr/bin/c++ --version && /usr/bin/g++-13 --version
+        run: cmake -Sstandalone -Bbuild -DCMAKE_BUILD_TYPE=Debug
 
       - name: build
         run: cmake --build build -j4
