@@ -1,7 +1,12 @@
 #include <membenchmc/membenchmc.h>
 
 namespace membenchmc {
-
+  /**
+   * @brief Trims leading and trailing whitespace from a string.
+   *
+   * @param str The string to trim.
+   * @return std::string The trimmed string.
+   */
   std::string trim(const std::string& str) {
     auto start = std::find_if(str.cbegin(), str.cend(),
                               [](unsigned char ch) { return !std::isspace(ch); });
