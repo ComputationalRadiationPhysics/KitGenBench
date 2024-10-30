@@ -78,6 +78,13 @@ namespace membenchmc {
     return std::string(hostname);
   }
 
+  /**
+   * @brief Retrieves the username of the current user.
+   *
+   * @return std::string The username of the current user.
+   */
+  std::string getUserName() { return std::string(getlogin()); }
+
   nlohmann::json gatherMetadata() {
     const std::chrono::time_point<std::chrono::utc_clock> now = std::chrono::utc_clock::now();
     nlohmann::json metadata{};
@@ -85,6 +92,8 @@ namespace membenchmc {
     std::cout << 3 << std::endl;
     metadata["host_name"] = getHostName();
     std::cout << 4 << std::endl;
+    metadata["user_name"] = getUserName();
+    std::cout << 5 << std::endl;
     metadata["cpu_info"] = getCPUInfo();
     std::cout << 6 << std::endl;
     return metadata;
