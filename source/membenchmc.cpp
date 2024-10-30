@@ -1,5 +1,12 @@
 #include <membenchmc/membenchmc.h>
 
+#include <algorithm>
+#include <cstdio>
+#include <cstdlib>
+#include <nlohmann/json.hpp>
+#include <sstream>
+#include <string>
+
 namespace membenchmc {
   /**
    * @brief Trims leading and trailing whitespace from a string.
