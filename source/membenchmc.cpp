@@ -4,7 +4,6 @@
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
-#include <format>
 #include <nlohmann/json.hpp>
 #include <sstream>
 #include <string>
