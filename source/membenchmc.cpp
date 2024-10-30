@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <iostream>
 #include <nlohmann/json.hpp>
 #include <sstream>
 #include <string>
@@ -49,10 +50,12 @@ namespace membenchmc {
    */
   nlohmann::json getCPUInfo() {
     std::string result = callLscpu();
+    std::cout << 1 << std::endl;
     nlohmann::json cpu_info;
     std::istringstream iss(result);
     std::string line;
     while (std::getline(iss, line)) {
+      std::cout << 2 << ": " << line << std::endl;
       std::istringstream line_stream(line);
       std::string key, value;
       if (std::getline(line_stream, key, ':') && std::getline(line_stream, value)) {
@@ -84,9 +87,13 @@ namespace membenchmc {
     auto start_time = time(nullptr);
     nlohmann::json metadata{};
     metadata["start_time"] = trim(ctime(&start_time));
+    std::cout << 3 << std::endl;
     metadata["host_name"] = getHostName();
+    std::cout << 4 << std::endl;
     metadata["user_name"] = getUserName();
+    std::cout << 5 << std::endl;
     metadata["cpu_info"] = getCPUInfo();
+    std::cout << 6 << std::endl;
     return metadata;
   }
 }  // namespace membenchmc
