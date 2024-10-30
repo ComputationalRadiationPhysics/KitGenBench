@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <ctime>
 #include <iostream>
 #include <nlohmann/json.hpp>
 #include <sstream>
@@ -79,7 +80,7 @@ namespace membenchmc {
   nlohmann::json gatherMetadata() {
     auto start_time = time(nullptr);
     nlohmann::json metadata{};
-    metadata["start_time"] = trim(ctime(&start_time));
+    metadata["start_time"] = std::asctime(std::localtime(&start_time));
     std::cout << 3 << std::endl;
     metadata["host_name"] = getHostName();
     std::cout << 4 << std::endl;
