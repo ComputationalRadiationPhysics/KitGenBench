@@ -99,15 +99,9 @@ void output(json const& report) { std::cout << report << std::endl; }
 
 auto main(int argc, char* argv[]) -> int {
   auto metadata = membenchmc::gatherMetadata();
-
-  std::cout << 7 << std::endl;
   auto config = composeConfig(argc, argv);
-  std::cout << 8 << std::endl;
   auto reports = IndividualReports{};
-  std::cout << 9 << std::endl;
   auto report = composeReport(metadata, config, reports);
-  std::cout << 10 << std::endl;
   output(report);
-  std::cout << 11 << std::endl;
   return EXIT_SUCCESS;
 }
