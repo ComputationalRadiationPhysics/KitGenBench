@@ -1,9 +1,10 @@
 #include <membenchmc/membenchmc.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
-#include <ctime>
+#include <format>
 #include <iostream>
 #include <nlohmann/json.hpp>
 #include <sstream>
@@ -78,9 +79,9 @@ namespace membenchmc {
   }
 
   nlohmann::json gatherMetadata() {
-    auto start_time = time(nullptr);
+    const std::chrono::time_point<std::chrono::utc_clock> now = std::chrono::utc_clock::now();
     nlohmann::json metadata{};
-    metadata["start_time"] = std::asctime(std::localtime(&start_time));
+    metadata["start_time"] = (std::ostringstream{} << std::format("{0:%F}T{0:%R%z}.", now)).str();
     std::cout << 3 << std::endl;
     metadata["host_name"] = getHostName();
     std::cout << 4 << std::endl;
