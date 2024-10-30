@@ -83,10 +83,23 @@ nlohmann::json composeConfig(int argc, char* argv[]) {
   return defaultConfig;
 }
 
+struct IndividualReports {};
+
+nlohmann::json composeReport(nlohmann::json const& metadata, nlohmann::json const& config,
+                             [[maybe_unused]] IndividualReports const& individualReports) {
+  nlohmann::json report{};
+  report["metadata"] = metadata;
+  report["config"] = config;
+  return report;
+}
+
+void output(nlohmann::json const& report) { std::cout << report << std::endl; }
+
 auto main(int argc, char* argv[]) -> int {
   auto metadata = membenchmc::gatherMetadata();
   auto config = composeConfig(argc, argv);
-  std::cout << "Metadata:\n" << metadata << std::endl;
-  std::cout << "\nConfig:\n" << config << std::endl;
+  auto reports = IndividualReports{};
+  auto report = composeReport(metadata, config, reports);
+  output(report);
   return EXIT_SUCCESS;
 }
