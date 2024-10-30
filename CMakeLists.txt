@@ -79,6 +79,5 @@ packageProject(
   INCLUDE_DESTINATION include/${PROJECT_NAME}-${PROJECT_VERSION}
   VERSION_HEADER "${VERSION_HEADER_LOCATION}"
   COMPATIBILITY SameMajorVersion
-  # TODO: Needs change!
-  DEPENDENCIES "fmt 9.1.0"
+  DEPENDENCIES "nlohmann_json 3.11.3"
 )
