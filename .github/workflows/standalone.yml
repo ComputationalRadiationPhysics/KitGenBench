@@ -28,6 +28,9 @@ jobs:
       - name: configure
         run: cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON -Sstandalone -Bbuild -DCMAKE_BUILD_TYPE=Debug
 
+      - name: compiler-id
+        run: /usr/bin/c++ --version
+
       - name: build
         run: cmake --build build -j4
 
