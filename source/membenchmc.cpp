@@ -24,11 +24,11 @@ namespace membenchmc {
   }
 
   /**
-   * @brief Retrieves CPU information using the `lscpu` command.
+   * @brief Calls `lscpu` and returns its stdout as string.
    *
-   * @return nlohmann::json A JSON object containing CPU information.
+   * @return std::string A string containing the output.
    */
-  nlohmann::json getCPUInfo() {
+  std::string callLscpu() {
     FILE* pipe = popen("lscpu", "r");
     if (!pipe) {
       return nlohmann::json::object({{"error", "CPU information not available"}});
@@ -39,6 +39,16 @@ namespace membenchmc {
       result += buffer;
     }
     pclose(pipe);
+    return result;
+  }
+
+  /**
+   * @brief Retrieves CPU information using the `lscpu` command.
+   *
+   * @return nlohmann::json A JSON object containing CPU information.
+   */
+  nlohmann::json getCPUInfo() {
+    std::string result = callLscpu();
     nlohmann::json cpu_info;
     std::istringstream iss(result);
     std::string line;
