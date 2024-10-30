@@ -16,8 +16,6 @@ include(../cmake/tools.cmake)
 include(../cmake/CPM.cmake)
 
 cpmaddpackage("gh:doctest/doctest@2.4.9")
-# TODO: This might need change!
-cpmaddpackage("gh:TheLartians/Format.cmake@1.7.3")
 
 cpmaddpackage(
   NAME nlohmann_json
