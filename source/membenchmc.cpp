@@ -16,6 +16,11 @@ namespace membenchmc {
     return std::string(start, end);
   }
 
+  /**
+   * @brief Retrieves CPU information using the `lscpu` command.
+   *
+   * @return nlohmann::json A JSON object containing CPU information.
+   */
   nlohmann::json getCPUInfo() {
     FILE* pipe = popen("lscpu", "r");
     if (!pipe) {
@@ -39,11 +44,23 @@ namespace membenchmc {
     }
     return cpu_info;
   }
+
+  /**
+   * @brief Retrieves the hostname of the system.
+   *
+   * @return std::string The hostname of the system.
+   */
   std::string getHostName() {
     char hostname[256];
     gethostname(hostname, sizeof(hostname));
     return std::string(hostname);
   }
+
+  /**
+   * @brief Retrieves the username of the current user.
+   *
+   * @return std::string The username of the current user.
+   */
   std::string getUserName() { return std::string(getlogin()); }
 
   nlohmann::json gatherMetadata() {
