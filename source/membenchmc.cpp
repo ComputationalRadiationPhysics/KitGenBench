@@ -65,7 +65,7 @@ namespace membenchmc {
 
   nlohmann::json gatherMetadata() {
     auto start_time = time(nullptr);
-    nlohmann::json metadata;
+    nlohmann::json metadata{};
     metadata["start_time"] = trim(ctime(&start_time));
     metadata["host_name"] = getHostName();
     metadata["user_name"] = getUserName();
