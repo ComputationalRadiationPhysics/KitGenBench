@@ -6,6 +6,8 @@
 #include <fstream>
 #include <optional>
 
+using nlohmann::json;
+
 auto defineCmdlineInterface() {
   cxxopts::Options options("my_program", "A program to process a configuration file");
   // clang-format off
@@ -40,17 +42,17 @@ std::optional<std::string> extractConfigFilePath(int argc, char* argv[], auto& o
   return {};
 }
 
-nlohmann::json parseJsonFile(const std::string& filename) {
+json parseJsonFile(const std::string& filename) {
   // Open the file
   std::ifstream file(filename);
   if (!file.is_open()) {
     throw std::runtime_error("Could not open file: " + filename);
   }
-  // Parse the JSON file into an nlohmann::json object
-  nlohmann::json json;
+  // Parse the JSON file into an json object
+  json json;
   try {
     file >> json;
-  } catch (const nlohmann::json::parse_error& e) {
+  } catch (const json::parse_error& e) {
     throw std::runtime_error("Error parsing JSON file: " + filename + " - " + e.what());
   }
   return json;
@@ -66,15 +68,15 @@ auto readConfigFilePath(int argc, char* argv[]) {
   }
 }
 
-nlohmann::json defaultConfig{};
+json defaultConfig{};
 
-nlohmann::json supplementWithDefaults(const nlohmann::json& providedConfig) {
+json supplementWithDefaults(const json& providedConfig) {
   auto config = defaultConfig;
   config.merge_patch(providedConfig);
   return config;
 }
 
-nlohmann::json composeConfig(int argc, char* argv[]) {
+json composeConfig(int argc, char* argv[]) {
   auto configFilePath = readConfigFilePath(argc, argv);
   if (configFilePath) {
     auto providedConfig = parseJsonFile(configFilePath.value());
@@ -85,15 +87,15 @@ nlohmann::json composeConfig(int argc, char* argv[]) {
 
 struct IndividualReports {};
 
-nlohmann::json composeReport(nlohmann::json const& metadata, nlohmann::json const& config,
-                             [[maybe_unused]] IndividualReports const& individualReports) {
-  nlohmann::json report{};
+json composeReport(json const& metadata, json const& config,
+                   [[maybe_unused]] IndividualReports const& individualReports) {
+  json report{};
   report["metadata"] = metadata;
   report["config"] = config;
   return report;
 }
 
-void output(nlohmann::json const& report) { std::cout << report << std::endl; }
+void output(json const& report) { std::cout << report << std::endl; }
 
 auto main(int argc, char* argv[]) -> int {
   auto metadata = membenchmc::gatherMetadata();
