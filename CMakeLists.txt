@@ -56,7 +56,7 @@ target_compile_options(${PROJECT_NAME} PUBLIC "$<$<COMPILE_LANG_AND_ID:CXX,MSVC>
 # TODO: Needs change!
 
 # Link dependencies
-target_link_libraries(${PROJECT_NAME} PRIVATE nlohmann_json::nlohmann_json)
+target_link_libraries(${PROJECT_NAME} PRIVATE "$<BUILD_INTERFACE:nlohmann_json::nlohmann_json>")
 
 target_include_directories(
   ${PROJECT_NAME} PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
