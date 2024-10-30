@@ -75,7 +75,7 @@ namespace membenchmc {
   }
 
   nlohmann::json gatherMetadata() {
-    const std::chrono::time_point<std::chrono::utc_clock> now = std::chrono::utc_clock::now();
+    auto now = std::chrono::utc_clock::now();
     nlohmann::json metadata{};
     metadata["start_time"] = (std::ostringstream{} << std::format("{0:%F}T{0:%R%z}.", now)).str();
     metadata["host_name"] = getHostName();
