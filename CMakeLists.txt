@@ -32,6 +32,12 @@ cpmaddpackage(
   GIT_TAG 1.2.0
 )
 
+cpmaddpackage(
+  NAME boost
+  GITHUB_REPOSITORY boostorg/boost
+  GIT_TAG boost-1.86.0
+)
+
 # ---- Add source files ----
 
 # Note: globbing sources is considered bad practice as CMake's generators may not detect new files
@@ -69,6 +75,7 @@ target_link_libraries(
     PRIVATE
         "$<BUILD_INTERFACE:nlohmann_json::nlohmann_json>"
         "$<BUILD_INTERFACE:alpaka::alpaka>"
+        "$<BUILD_INTERFACE:Boost::headers>"
 )
 
 target_include_directories(
@@ -76,6 +83,11 @@ target_include_directories(
     PUBLIC
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include/${PROJECT_NAME}-${PROJECT_VERSION}>
+)
+
+target_include_directories(
+    ${PROJECT_NAME}
+    PRIVATE $<BUILD_INTERFACE:${Boost_INCLUDE_DIRS}>
 )
 
 # ---- Create an installable target ----
