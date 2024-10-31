@@ -5,10 +5,30 @@
 #include <alpaka/alpaka.hpp>
 #include <string>
 
-TEST_CASE("MemBenchMC") {
-  using Dim = alpaka::DimInt<1>;
+#include "alpaka/acc/AccCpuSerial.hpp"
+#include "alpaka/acc/Traits.hpp"
+
+struct NoRecipe {};
+struct NoChecker {};
+struct NoLogger {};
+
+using Dim = alpaka::DimInt<1>;
+using Idx = std::uint32_t;
+using TAcc = alpaka::AccCpuSerial<Dim, Idx>;
+
+TEST_CASE("runBenchmark trivially") {
   using namespace membenchmc;
-  std::cout << Dim::value << std::endl;
+
+  auto recipes = NoRecipe{};
+  auto loggers = NoLogger{};
+  auto checkers = NoChecker{};
+
+  SUBCASE("can do nothing.") { runBenchmark<TAcc>(recipes, loggers, checkers); }
+
+  SUBCASE("can do nothing.") {
+    auto report = runBenchmark<TAcc>(recipes, loggers, checkers);
+    CHECK(report.contains(alpaka::getAccName<TAcc>()));
+  }
 }
 
 TEST_CASE("MemBenchMC version") {

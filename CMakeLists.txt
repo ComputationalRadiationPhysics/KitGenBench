@@ -78,12 +78,6 @@ target_include_directories(
         $<INSTALL_INTERFACE:include/${PROJECT_NAME}-${PROJECT_VERSION}>
 )
 
-cpmaddpackage(
-  NAME alpaka
-  GITHUB_REPOSITORY alpaka-group/alpaka
-  GIT_TAG 1.2.0
-)
-
 # ---- Create an installable target ----
 # this allows users to install and find the library via `find_package()`.
 
@@ -100,5 +94,5 @@ packageproject(
   INCLUDE_DESTINATION include/${PROJECT_NAME}-${PROJECT_VERSION}
   VERSION_HEADER "${VERSION_HEADER_LOCATION}"
   COMPATIBILITY SameMajorVersion
-  DEPENDENCIES "nlohmann_json 3.11.3"
+  DEPENDENCIES "nlohmann_json 3.11.3" "alpaka 1.2.0"
 )

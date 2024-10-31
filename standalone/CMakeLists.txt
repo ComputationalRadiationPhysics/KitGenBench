@@ -50,4 +50,5 @@ target_link_libraries(
     MemBenchMC::MemBenchMC
     cxxopts
     nlohmann_json::nlohmann_json
+    alpaka::alpaka
 )
