@@ -27,15 +27,15 @@ cpmaddpackage(
 )
 
 cpmaddpackage(
-  NAME alpaka
-  GITHUB_REPOSITORY alpaka-group/alpaka
-  GIT_TAG 1.2.0
-)
-
-cpmaddpackage(
   NAME boost
   GITHUB_REPOSITORY boostorg/boost
   GIT_TAG boost-1.86.0
+)
+
+cpmaddpackage(
+  NAME alpaka
+  GITHUB_REPOSITORY alpaka-group/alpaka
+  GIT_TAG 1.2.0
 )
 
 # ---- Add source files ----
