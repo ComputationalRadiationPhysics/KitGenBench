@@ -1,5 +1,4 @@
 [![Actions Status](https://github.com/chillenzer/MemBenchMC/workflows/Ubuntu/badge.svg)](https://github.com/chillenzer/MemBenchMC/actions)
-[![Actions Status](https://github.com/chillenzer/MemBenchMC/workflows/pre-commit/badge.svg)](https://github.com/chillenzer/MemBenchMC/actions)
 [![Actions Status](https://github.com/chillenzer/MemBenchMC/workflows/Install/badge.svg)](https://github.com/chillenzer/MemBenchMC/actions)
 [![codecov](https://codecov.io/gh/chillenzer/MemBenchMC/branch/master/graph/badge.svg)](https://codecov.io/gh/chillenzer/MemBenchMC)
 
