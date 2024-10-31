@@ -12,7 +12,9 @@
 #include "alpaka/workdiv/WorkDivMembers.hpp"
 #include "nlohmann/json.hpp"
 
-struct NoRecipe {};
+struct NoRecipe {
+  std::optional<membenchmc::StepResult> next() { return std::nullopt; }
+};
 struct NoChecker {};
 struct NoLogger {};
 
@@ -46,21 +48,21 @@ struct MallocFreeRecipe {
   std::vector<std::uint32_t> sizes{};
   std::uint32_t currentIndex{0U};
   void* currentPointer{nullptr};
-};
 
-template <>
-std::optional<membenchmc::StepResult> membenchmc::next<MallocFreeRecipe>(MallocFreeRecipe& recipe) {
-  if (recipe.currentIndex == recipe.sizes.size()) return std::nullopt;
-  if (recipe.currentPointer == nullptr) {
-    recipe.currentPointer = malloc(recipe.sizes[recipe.currentIndex]);
-    return StepResult{"malloc", recipe.currentPointer};
-  } else {
-    free(recipe.currentPointer);
-    recipe.currentPointer = nullptr;
-    recipe.currentIndex++;
-    return StepResult{"free", recipe.currentPointer};
+  std::optional<membenchmc::StepResult> next() {
+    if (currentIndex >= sizes.size()) return std::nullopt;
+
+    if (currentPointer == nullptr) {
+      currentPointer = malloc(sizes[currentIndex]);
+      return membenchmc::StepResult{"malloc", currentPointer};
+    } else {
+      free(currentPointer);
+      currentPointer = nullptr;
+      currentIndex++;
+      return membenchmc::StepResult{"free", currentPointer};
+    }
   }
-}
+};
 
 TEST_CASE("runBenchmark") {
   using namespace membenchmc;
@@ -71,7 +73,9 @@ TEST_CASE("runBenchmark") {
   auto loggers = Aggregate<NoLogger>{};
   auto checkers = Aggregate<NoChecker>{};
 
-  SUBCASE("can handle simple recipe.") { runBenchmark<Acc>(workdiv, recipes, loggers, checkers); }
+  SUBCASE("can handle one-step malloc-free recipe.") {
+    runBenchmark<Acc>(workdiv, recipes, loggers, checkers);
+  }
 }
 TEST_CASE("initialiseBenchmark") {
   using namespace membenchmc;

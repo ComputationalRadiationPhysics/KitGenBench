@@ -16,9 +16,11 @@ namespace membenchmc {
     void* pointer{};
   };
 
-  template <typename TRecipe> std::optional<StepResult> next([[maybe_unused]] TRecipe& recipe) {
-    return {};
-  }
+  template <typename TRecipe>
+  concept Recipe = requires(TRecipe recipe) {
+    { recipe.next() } -> std::same_as<std::optional<StepResult>>;
+  };
+
   template <typename TChecker> void check([[maybe_unused]] TChecker& checker,
                                           [[maybe_unused]] std::optional<StepResult> result) {}
 
@@ -42,7 +44,7 @@ namespace membenchmc {
 
       std::optional<StepResult> result{};
       do {
-        result = callLogged(myLogger, [&myRecipe] { return next(myRecipe); });
+        result = callLogged(myLogger, [&myRecipe] { return myRecipe.next(); });
         callLogged(myLogger, [&myChecker, &result] { return check(myChecker, result); });
       } while (result);
     }
