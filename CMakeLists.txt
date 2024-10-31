@@ -20,11 +20,16 @@ include(cmake/CPM.cmake)
 # PackageProject.cmake will be used to make our target installable
 cpmaddpackage("gh:TheLartians/PackageProject.cmake@1.8.0")
 
-# TODO: Add alpaka!
 cpmaddpackage(
   NAME nlohmann_json
   GITHUB_REPOSITORY nlohmann/json
   VERSION 3.11.3 NO_TESTS
+)
+
+cpmaddpackage(
+  NAME alpaka
+  GITHUB_REPOSITORY alpaka-group/alpaka
+  GIT_TAG 1.2.0
 )
 
 # ---- Add source files ----
@@ -63,7 +68,9 @@ target_compile_options(
 # Link dependencies
 target_link_libraries(
     ${PROJECT_NAME}
-    PRIVATE "$<BUILD_INTERFACE:nlohmann_json::nlohmann_json>"
+    PRIVATE
+        "$<BUILD_INTERFACE:nlohmann_json::nlohmann_json>"
+        "$<BUILD_INTERFACE:alpaka::alpaka>"
 )
 
 target_include_directories(
@@ -71,6 +78,12 @@ target_include_directories(
     PUBLIC
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include/${PROJECT_NAME}-${PROJECT_VERSION}>
+)
+
+cpmaddpackage(
+  NAME alpaka
+  GITHUB_REPOSITORY alpaka-group/alpaka
+  GIT_TAG 1.2.0
 )
 
 # ---- Create an installable target ----

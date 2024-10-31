@@ -23,6 +23,12 @@ cpmaddpackage(
   VERSION 3.11.3 NO_TESTS
 )
 
+cpmaddpackage(
+  NAME alpaka
+  GITHUB_REPOSITORY alpaka-group/alpaka
+  GIT_TAG 1.2.0
+)
+
 if(TEST_INSTALLED_VERSION)
     find_package(MemBenchMC REQUIRED)
 else()
@@ -32,12 +38,13 @@ endif()
 # ---- Create binary ----
 
 file(GLOB sources CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp)
-add_executable(${PROJECT_NAME} ${sources})
+alpaka_add_executable(${PROJECT_NAME} ${sources})
 target_link_libraries(
     ${PROJECT_NAME}
     doctest::doctest
     MemBenchMC::MemBenchMC
     nlohmann_json::nlohmann_json
+    alpaka::alpaka
 )
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20)
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD_REQUIRED ON)

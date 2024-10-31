@@ -22,13 +22,19 @@ cpmaddpackage(
   VERSION 3.11.3 NO_TESTS
 )
 
+cpmaddpackage(
+  NAME alpaka
+  GITHUB_REPOSITORY alpaka-group/alpaka
+  GIT_TAG 1.2.0
+)
+
 cpmaddpackage(NAME MemBenchMC SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/..)
 
 # ---- Create standalone executable ----
 
 file(GLOB sources CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp)
 
-add_executable(${PROJECT_NAME} ${sources})
+alpaka_add_executable(${PROJECT_NAME} ${sources})
 
 set_target_properties(
     ${PROJECT_NAME}
