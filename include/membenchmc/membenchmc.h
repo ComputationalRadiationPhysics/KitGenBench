@@ -1,6 +1,9 @@
 #pragma once
 #include <alpaka/alpaka.hpp>
 #include <nlohmann/json.hpp>
+#include <optional>
+
+#include "alpaka/queue/Properties.hpp"
 
 namespace membenchmc {
 
@@ -8,9 +11,53 @@ namespace membenchmc {
     return std::make_tuple(1, 2, 3);
   }
 
-  template <typename TAcc> nlohmann::json runBenchmark([[maybe_unused]] auto& recipes,
-                                                       [[maybe_unused]] auto& loggers,
-                                                       [[maybe_unused]] auto& checkers) {
+  struct StepResult {};
+
+  template <typename TRecipe> std::optional<StepResult> next([[maybe_unused]] TRecipe& recipe) {
+    return {};
+  }
+  template <typename TChecker> void check([[maybe_unused]] TChecker& checker,
+                                          [[maybe_unused]] std::optional<StepResult> result) {}
+
+  template <typename TLogger>
+  std::optional<StepResult> callLogged([[maybe_unused]] TLogger& logger,
+                                       [[maybe_unused]] auto const& func) {
+    return {};
+  }
+
+  struct BenchmarkKernel {
+    template <typename TAcc>
+    ALPAKA_FN_ACC auto operator()(TAcc const& acc, auto recipes, auto loggers, auto checkers) const
+        -> void {
+      auto const globalThreadIdx = alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc);
+      auto const globalThreadExtent = alpaka::getWorkDiv<alpaka::Grid, alpaka::Threads>(acc);
+      auto const linearizedGlobalThreadIdx
+          = alpaka::mapIdx<1u>(globalThreadIdx, globalThreadExtent).x();
+
+      auto& myRecipe = recipes[linearizedGlobalThreadIdx];
+      auto& myLogger = loggers[linearizedGlobalThreadIdx];
+      auto& myChecker = checkers[linearizedGlobalThreadIdx];
+
+      std::optional<StepResult> result{};
+      do {
+        result = callLogged(myLogger, [&myRecipe] { return next(myRecipe); });
+        callLogged(myLogger, [&myChecker, &result] { return check(myChecker, result); });
+      } while (result);
+    }
+  };
+
+  template <typename TAcc>
+  nlohmann::json runBenchmark(auto const& workdiv, [[maybe_unused]] auto& recipes,
+                              [[maybe_unused]] auto& loggers, [[maybe_unused]] auto& checkers) {
+    auto const platformAcc = alpaka::Platform<TAcc>{};
+    auto const dev = alpaka::getDevByIdx(platformAcc, 0);
+    auto queue = alpaka::Queue<TAcc, alpaka::Blocking>(dev);
+
+    // Here it is synchronous which means that the kernel is directly executed.
+    alpaka::exec<TAcc>(queue, workdiv, BenchmarkKernel{}, recipes.template get<TAcc>(),
+                       loggers.template get<TAcc>(), checkers.template get<TAcc>());
+    alpaka::wait(queue);
+
     return {{alpaka::getAccName<TAcc>(), ""}};
   };
 
