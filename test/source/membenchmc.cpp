@@ -7,6 +7,7 @@
 
 #include "alpaka/acc/AccCpuSerial.hpp"
 #include "alpaka/acc/Traits.hpp"
+#include "nlohmann/json.hpp"
 
 struct NoRecipe {};
 struct NoChecker {};
@@ -25,9 +26,18 @@ TEST_CASE("runBenchmark trivially") {
 
   SUBCASE("can do nothing.") { runBenchmark<TAcc>(recipes, loggers, checkers); }
 
-  SUBCASE("can do nothing.") {
+  SUBCASE("returns a report about that accelerator.") {
     auto report = runBenchmark<TAcc>(recipes, loggers, checkers);
     CHECK(report.contains(alpaka::getAccName<TAcc>()));
+  }
+}
+
+TEST_CASE("initialiseBenchmark") {
+  using namespace membenchmc;
+  nlohmann::json config{};
+
+  SUBCASE("takes a json config and returns recipes, loggers and checkers.") {
+    [[maybe_unused]] auto [recipes, loggers, checkers] = initialiseBenchmark(config);
   }
 }
 

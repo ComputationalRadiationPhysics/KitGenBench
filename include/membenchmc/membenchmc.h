@@ -4,6 +4,10 @@
 
 namespace membenchmc {
 
+  inline auto initialiseBenchmark([[maybe_unused]] nlohmann::json const& config) {
+    return std::make_tuple(1, 2, 3);
+  }
+
   template <typename TAcc> nlohmann::json runBenchmark([[maybe_unused]] auto& recipes,
                                                        [[maybe_unused]] auto& loggers,
                                                        [[maybe_unused]] auto& checkers) {
