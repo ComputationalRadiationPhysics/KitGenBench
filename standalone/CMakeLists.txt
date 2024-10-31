@@ -57,4 +57,6 @@ target_link_libraries(
     cxxopts
     nlohmann_json::nlohmann_json
     alpaka::alpaka
+    Boost::predef
+    Boost::core
 )
