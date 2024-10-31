@@ -63,8 +63,6 @@ target_compile_options(
     PUBLIC "$<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/permissive->"
 )
 
-# TODO: Needs change!
-
 # Link dependencies
 target_link_libraries(
     ${PROJECT_NAME}
