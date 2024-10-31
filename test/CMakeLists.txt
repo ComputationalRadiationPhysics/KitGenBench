@@ -51,6 +51,8 @@ target_link_libraries(
     MemBenchMC::MemBenchMC
     nlohmann_json::nlohmann_json
     alpaka::alpaka
+    Boost::predef
+    Boost::core
 )
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20)
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD_REQUIRED ON)
