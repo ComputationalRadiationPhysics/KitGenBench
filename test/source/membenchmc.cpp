@@ -1,13 +1,14 @@
 #include <doctest/doctest.h>
 #include <membenchmc/membenchmc.h>
 #include <membenchmc/version.h>
+#include <sys/types.h>
 
 #include <alpaka/alpaka.hpp>
+#include <optional>
 #include <string>
 
 #include "alpaka/acc/AccCpuSerial.hpp"
 #include "alpaka/acc/Traits.hpp"
-#include "alpaka/workdiv/WorkDivHelpers.hpp"
 #include "alpaka/workdiv/WorkDivMembers.hpp"
 #include "nlohmann/json.hpp"
 
@@ -41,6 +42,37 @@ TEST_CASE("runBenchmark trivially") {
   }
 }
 
+struct MallocFreeRecipe {
+  std::vector<std::uint32_t> sizes{};
+  std::uint32_t currentIndex{0U};
+  void* currentPointer{nullptr};
+};
+
+template <>
+std::optional<membenchmc::StepResult> membenchmc::next<MallocFreeRecipe>(MallocFreeRecipe& recipe) {
+  if (recipe.currentIndex == recipe.sizes.size()) return std::nullopt;
+  if (recipe.currentPointer == nullptr) {
+    recipe.currentPointer = malloc(recipe.sizes[recipe.currentIndex]);
+    return StepResult{"malloc", recipe.currentPointer};
+  } else {
+    free(recipe.currentPointer);
+    recipe.currentPointer = nullptr;
+    recipe.currentIndex++;
+    return StepResult{"free", recipe.currentPointer};
+  }
+}
+
+TEST_CASE("runBenchmark") {
+  using namespace membenchmc;
+
+  auto workdiv = alpaka::WorkDivMembers<Dim, Idx>{
+      alpaka::Vec<Dim, Idx>{1}, alpaka::Vec<Dim, Idx>{1}, alpaka::Vec<Dim, Idx>{1}};
+  auto recipes = Aggregate<MallocFreeRecipe>{{{16U}}};
+  auto loggers = Aggregate<NoLogger>{};
+  auto checkers = Aggregate<NoChecker>{};
+
+  SUBCASE("can handle simple recipe.") { runBenchmark<Acc>(workdiv, recipes, loggers, checkers); }
+}
 TEST_CASE("initialiseBenchmark") {
   using namespace membenchmc;
   nlohmann::json config{};

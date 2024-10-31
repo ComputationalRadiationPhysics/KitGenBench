@@ -11,7 +11,10 @@ namespace membenchmc {
     return std::make_tuple(1, 2, 3);
   }
 
-  struct StepResult {};
+  struct StepResult {
+    std::string action{};
+    void* pointer{};
+  };
 
   template <typename TRecipe> std::optional<StepResult> next([[maybe_unused]] TRecipe& recipe) {
     return {};
@@ -20,9 +23,8 @@ namespace membenchmc {
                                           [[maybe_unused]] std::optional<StepResult> result) {}
 
   template <typename TLogger>
-  std::optional<StepResult> callLogged([[maybe_unused]] TLogger& logger,
-                                       [[maybe_unused]] auto const& func) {
-    return {};
+  auto callLogged([[maybe_unused]] TLogger& logger, [[maybe_unused]] auto const& func) {
+    return func();
   }
 
   struct BenchmarkKernel {
@@ -53,7 +55,6 @@ namespace membenchmc {
     auto const dev = alpaka::getDevByIdx(platformAcc, 0);
     auto queue = alpaka::Queue<TAcc, alpaka::Blocking>(dev);
 
-    // Here it is synchronous which means that the kernel is directly executed.
     alpaka::exec<TAcc>(queue, workdiv, BenchmarkKernel{}, recipes.template get<TAcc>(),
                        loggers.template get<TAcc>(), checkers.template get<TAcc>());
     alpaka::wait(queue);
