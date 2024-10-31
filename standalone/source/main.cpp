@@ -8,6 +8,15 @@
 
 using nlohmann::json;
 
+/**
+ * @brief Define the command-line interface for the program.
+ *
+ * This function sets up the command-line options for the program using the
+ * cxxopts library. The options include a path to the configuration file, a
+ * help option, and a version option.
+ *
+ * @return cxxopts::Options The options object containing the command-line options.
+ */
 auto defineCmdlineInterface() {
   cxxopts::Options options("my_program", "A program to process a configuration file");
   // clang-format off
@@ -19,6 +28,22 @@ auto defineCmdlineInterface() {
   return options;
 }
 
+/**
+ * @brief Extract the path to the configuration file from the command-line arguments.
+ *
+ * This function parses the command-line arguments using the cxxopts library and
+ * extracts the path to the configuration file if it was provided. If the help
+ * option was requested, the function prints the help message and exits. If the
+ * version option was requested, the function prints the version number and exits.
+ * If the config option was not provided, the function prints a warning message
+ * and returns an empty optional value.
+ *
+ * @param argc The number of command-line arguments.
+ * @param argv The array of command-line arguments.
+ * @param options The cxxopts::Options object containing the command-line options.
+ * @return std::optional<std::string> The path to the configuration file if it was
+ * provided, or an empty optional value if it was not.
+ */
 std::optional<std::string> extractConfigFilePath(int argc, char* argv[], auto& options) {
   auto result = options.parse(argc, argv);
   // Check if help was requested
@@ -42,6 +67,17 @@ std::optional<std::string> extractConfigFilePath(int argc, char* argv[], auto& o
   return {};
 }
 
+/**
+ * @brief Parse a JSON file into a json object.
+ *
+ * This function opens the specified file and parses its contents into a json
+ * object using the nlohmann::json library. If the file cannot be opened or if
+ * there is an error parsing the JSON, the function throws a std::runtime_error
+ * exception.
+ *
+ * @param filename The name of the JSON file to parse.
+ * @return json The json object containing the parsed JSON data.
+ */
 json parseJsonFile(const std::string& filename) {
   // Open the file
   std::ifstream file(filename);
@@ -58,6 +94,17 @@ json parseJsonFile(const std::string& filename) {
   return json;
 }
 
+/**
+ * @brief Read the path to the configuration file from the command-line arguments.
+ *
+ * In doing so, it also handles other command-line arguments like `help` or `version`.
+ *
+ * @param argc The number of command-line arguments.
+ * @param argv The array of command-line arguments.
+ * @return std::optional<std::string> The path to the configuration file if it was
+ * provided, or an empty optional value if it was not.
+ */
+
 auto readConfigFilePath(int argc, char* argv[]) {
   auto options = defineCmdlineInterface();
   try {
@@ -68,14 +115,38 @@ auto readConfigFilePath(int argc, char* argv[]) {
   }
 }
 
+/// @brief The default configuration supplementing whatever is given by the user.
 json defaultConfig{};
 
+/**
+ * @brief Supplement the provided configuration with default values.
+ *
+ * This function takes a json object representing the provided configuration
+ * and merges it with a default configuration using the merge_patch method.
+ * The resulting json object is returned.
+ *
+ * @param providedConfig The json object representing the provided configuration.
+ * @return json The json object representing the supplemented configuration.
+ */
 json supplementWithDefaults(const json& providedConfig) {
   auto config = defaultConfig;
   config.merge_patch(providedConfig);
   return config;
 }
 
+/**
+ * @brief Compose the final configuration for the program.
+ *
+ * This function is responsible for composing the final configuration for the
+ * program. It first reads the path to the configuration file's name from the
+ * command-line arguments. If a configuration file was provided, it parses the JSON file and
+ * supplements it with default values. If no configuration file was provided, the function returns
+ * the default configuration.
+ *
+ * @param argc The number of command-line arguments.
+ * @param argv The array of command-line arguments.
+ * @return json The json object representing the final configuration for the program.
+ */
 json composeConfig(int argc, char* argv[]) {
   auto configFilePath = readConfigFilePath(argc, argv);
   if (configFilePath) {
@@ -87,6 +158,19 @@ json composeConfig(int argc, char* argv[]) {
 
 struct IndividualReports {};
 
+/**
+ * @brief Compose a report from the provided metadata, configuration, and individual reports.
+ *
+ * This function takes a json object representing the metadata, a json object
+ * representing the configuration, and a json object representing the individual
+ * reports, and composes a report by merging them into a single json object.
+ * The resulting json object is returned.
+ *
+ * @param metadata The json object representing the metadata.
+ * @param config The json object representing the configuration.
+ * @param individualReports The json object representing the individual reports.
+ * @return json The json object representing the composed report.
+ */
 json composeReport(json const& metadata, json const& config,
                    [[maybe_unused]] IndividualReports const& individualReports) {
   json report{};

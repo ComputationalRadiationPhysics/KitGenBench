@@ -13,6 +13,7 @@ namespace membenchmc {
                                                        [[maybe_unused]] auto& checkers) {
     return {{alpaka::getAccName<TAcc>(), ""}};
   };
+
   /**
    * @brief Gathers metadata about the system, including start time, hostname, username, and CPU
    * information.
