@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.14...3.22)
 
 if(POLICY CMP0167)
-    cmake_policy(SET CMP0167 OLD)
+    cmake_policy(SET CMP0167 NEW)
 endif()
 # ---- Project ----
 project(MemBenchMC VERSION 0.1 LANGUAGES CXX)
