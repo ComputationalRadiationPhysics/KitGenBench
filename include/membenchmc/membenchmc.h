@@ -33,17 +33,16 @@ namespace membenchmc {
   }
 
   struct BenchmarkKernel {
-    template <typename TAcc>
-    ALPAKA_FN_ACC auto operator()(TAcc const& acc, auto recipes, auto loggers, auto checkers) const
+    template <typename TAcc> ALPAKA_FN_ACC auto operator()(TAcc const& acc, auto instructions) const
         -> void {
       auto const globalThreadIdx = alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc);
       auto const globalThreadExtent = alpaka::getWorkDiv<alpaka::Grid, alpaka::Threads>(acc);
       auto const linearizedGlobalThreadIdx
           = alpaka::mapIdx<1u>(globalThreadIdx, globalThreadExtent).x();
 
-      auto& myRecipe = recipes[linearizedGlobalThreadIdx];
-      auto& myLogger = loggers[linearizedGlobalThreadIdx];
-      auto& myChecker = checkers[linearizedGlobalThreadIdx];
+      auto& myRecipe = instructions.recipes[linearizedGlobalThreadIdx];
+      auto& myLogger = instructions.loggers[linearizedGlobalThreadIdx];
+      auto& myChecker = instructions.checkers[linearizedGlobalThreadIdx];
 
       std::optional<StepResult> result{};
       do {
@@ -53,18 +52,35 @@ namespace membenchmc {
     }
   };
 
-  template <typename TAcc>
-  nlohmann::json runBenchmark(auto const& workdiv, [[maybe_unused]] auto& recipes,
-                              [[maybe_unused]] auto& loggers, [[maybe_unused]] auto& checkers) {
-    auto const platformAcc = alpaka::Platform<TAcc>{};
-    auto const dev = alpaka::getDevByIdx(platformAcc, 0);
-    auto queue = alpaka::Queue<TAcc, alpaka::Blocking>(dev);
+  namespace detail {
+    template <template <typename, typename> typename TExecutionDetails, typename TAcc,
+              typename TDev>
+    struct AccOf {
+      TExecutionDetails<TAcc, TDev> execution;
+      using type = TAcc;
+    };
+  }  // namespace detail
 
-    alpaka::exec<TAcc>(queue, workdiv, BenchmarkKernel{}, recipes.template get<TAcc>(),
-                       loggers.template get<TAcc>(), checkers.template get<TAcc>());
+  nlohmann::json runBenchmark(auto& setup) {
+    auto start = std::chrono::high_resolution_clock::now();
+    using Acc = decltype(detail::AccOf{setup.execution})::type;
+    auto queue = alpaka::Queue<Acc, alpaka::Blocking>(setup.execution.device);
+
+    alpaka::exec<Acc>(queue, setup.execution.workdiv, BenchmarkKernel{},
+                      setup.instructions.sendTo(setup.execution.device, queue));
     alpaka::wait(queue);
 
-    return {{alpaka::getAccName<TAcc>(), ""}};
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+    return {{"totalRuntime [ns]", duration},
+            {"logs", setup.instructions.loggers.generateReport()},
+            {"checks", setup.instructions.checkers.generateReport()}};
+  };
+
+  template <typename... TSetup> nlohmann::json runBenchmarks(TSetup&... setup) {
+    auto finalReport = nlohmann::json::object();
+    (finalReport.push_back({setup.name, runBenchmark(setup)}), ...);
+    return finalReport;
   };
 
   /**
