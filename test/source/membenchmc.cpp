@@ -4,6 +4,7 @@
 #include <sys/types.h>
 
 #include <alpaka/alpaka.hpp>
+#include <chrono>
 #include <optional>
 #include <string>
 
@@ -16,7 +17,9 @@ struct NoRecipe {
   std::optional<membenchmc::StepResult> next() { return std::nullopt; }
 };
 struct NoChecker {};
-struct NoLogger {};
+struct NoLogger {
+  auto call(auto const& func) { return func(); }
+};
 
 template <typename TRecipe> struct Aggregate {
   TRecipe recipe;
@@ -64,16 +67,44 @@ struct MallocFreeRecipe {
   }
 };
 
+struct SumUpLogger {
+  std::map<std::string, std::chrono::nanoseconds> durations;
+
+  auto call(const auto& func) {
+    auto start = std::chrono::high_resolution_clock::now();
+    std::optional<membenchmc::StepResult> result = func();
+    auto end = std::chrono::high_resolution_clock::now();
+
+    if (not result.has_value()) {
+      return result;
+    }
+
+    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
+    if (durations.contains(result.value().action)) {
+      durations[result.value().action] += duration;
+    } else {
+      durations[result.value().action] = duration;
+    }
+
+    return result;
+  }
+};
+
 TEST_CASE("runBenchmark") {
   using namespace membenchmc;
 
   auto workdiv = alpaka::WorkDivMembers<Dim, Idx>{
       alpaka::Vec<Dim, Idx>{1}, alpaka::Vec<Dim, Idx>{1}, alpaka::Vec<Dim, Idx>{1}};
   auto recipes = Aggregate<MallocFreeRecipe>{{{16U}}};
-  auto loggers = Aggregate<NoLogger>{};
   auto checkers = Aggregate<NoChecker>{};
 
   SUBCASE("can handle one-step malloc-free recipe.") {
+    auto loggers = Aggregate<NoLogger>{};
+    runBenchmark<Acc>(workdiv, recipes, loggers, checkers);
+  }
+
+  SUBCASE("can log one-step malloc-free recipe.") {
+    auto loggers = Aggregate<SumUpLogger>{};
     runBenchmark<Acc>(workdiv, recipes, loggers, checkers);
   }
 }

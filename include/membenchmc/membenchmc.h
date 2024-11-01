@@ -21,8 +21,11 @@ namespace membenchmc {
     { recipe.next() } -> std::same_as<std::optional<StepResult>>;
   };
 
-  template <typename TChecker> void check([[maybe_unused]] TChecker& checker,
-                                          [[maybe_unused]] std::optional<StepResult> result) {}
+  template <typename TChecker>
+  std::optional<StepResult> check([[maybe_unused]] TChecker& checker,
+                                  [[maybe_unused]] std::optional<StepResult> result) {
+    return {};
+  }
 
   template <typename TLogger>
   auto callLogged([[maybe_unused]] TLogger& logger, [[maybe_unused]] auto const& func) {
@@ -44,8 +47,8 @@ namespace membenchmc {
 
       std::optional<StepResult> result{};
       do {
-        result = callLogged(myLogger, [&myRecipe] { return myRecipe.next(); });
-        callLogged(myLogger, [&myChecker, &result] { return check(myChecker, result); });
+        result = myLogger.call([&myRecipe] { return myRecipe.next(); });
+        myLogger.call([&myChecker, &result] { return check(myChecker, result); });
       } while (result);
     }
   };
