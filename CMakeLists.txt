@@ -80,6 +80,7 @@ target_link_libraries(
         "$<BUILD_INTERFACE:alpaka::alpaka>"
         "$<BUILD_INTERFACE:Boost::predef>"
         "$<BUILD_INTERFACE:Boost::core>"
+        "$<BUILD_INTERFACE:Boost::atomic>"
 )
 
 target_include_directories(

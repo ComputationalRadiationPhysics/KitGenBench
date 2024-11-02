@@ -56,6 +56,7 @@ target_link_libraries(
     alpaka::alpaka
     Boost::predef
     Boost::core
+    Boost::atomic
 )
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20)
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD_REQUIRED ON)

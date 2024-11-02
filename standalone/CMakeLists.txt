@@ -62,4 +62,5 @@ target_link_libraries(
     alpaka::alpaka
     Boost::predef
     Boost::core
+    Boost::atomic
 )
