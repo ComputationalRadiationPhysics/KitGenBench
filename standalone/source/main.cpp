@@ -3,160 +3,196 @@
 
 #include <cstdlib>
 #include <cxxopts.hpp>
-#include <fstream>
-#include <optional>
+#include <memory>
+#include <tuple>
 
 using nlohmann::json;
+using namespace membenchmc;
 
-/**
- * @brief Define the command-line interface for the program.
- *
- * This function sets up the command-line options for the program using the
- * cxxopts library. The options include a path to the configuration file, a
- * help option, and a version option.
- *
- * @return cxxopts::Options The options object containing the command-line options.
- */
-auto defineCmdlineInterface() {
-  cxxopts::Options options("my_program", "A program to process a configuration file");
-  // clang-format off
-  options.add_options()
-    ("c,config", "Path to the configuration file", cxxopts::value<std::string>())
-    ("h,help", "Print help")
-    ( "v,version", "Print the current version number");
-  // clang-format on
-  return options;
-}
+namespace membenchmc::Actions {
+  constexpr int MALLOC = 1U;
+  constexpr int FREE = 2U;
+}  // namespace membenchmc::Actions
 
-/**
- * @brief Extract the path to the configuration file from the command-line arguments.
- *
- * This function parses the command-line arguments using the cxxopts library and
- * extracts the path to the configuration file if it was provided. If the help
- * option was requested, the function prints the help message and exits. If the
- * version option was requested, the function prints the version number and exits.
- * If the config option was not provided, the function prints a warning message
- * and returns an empty optional value.
- *
- * @param argc The number of command-line arguments.
- * @param argv The array of command-line arguments.
- * @param options The cxxopts::Options object containing the command-line options.
- * @return std::optional<std::string> The path to the configuration file if it was
- * provided, or an empty optional value if it was not.
- */
-std::optional<std::string> extractConfigFilePath(int argc, char* argv[], auto& options) {
-  auto result = options.parse(argc, argv);
-  // Check if help was requested
-  if (result.count("help")) {
-    std::cout << options.help() << std::endl;
-    exit(0);
+namespace setups {
+  auto makeExecutionDetails() {
+    using Dim = alpaka::DimInt<1>;
+    using Idx = std::uint32_t;
+    using Acc = alpaka::AccCpuSerial<Dim, Idx>;
+    auto const platformAcc = alpaka::Platform<Acc>{};
+    auto const dev = alpaka::getDevByIdx(platformAcc, 0);
+    auto workdiv = alpaka::WorkDivMembers<Dim, Idx>{
+        alpaka::Vec<Dim, Idx>{1}, alpaka::Vec<Dim, Idx>{1}, alpaka::Vec<Dim, Idx>{1}};
+    return ExecutionDetails<Acc, decltype(dev)>{workdiv, dev};
   }
-  if (result["version"].template as<bool>()) {
-    std::cout << "MemBenchMC, version " << MEMBENCHMC_VERSION << std::endl;
-    exit(0);
+
+  template <typename TExecutionDetails, typename TInstructionDetails>
+  Setup<TExecutionDetails, TInstructionDetails> bundleUp(std::string name,
+                                                         TExecutionDetails execution,
+                                                         TInstructionDetails instructions,
+                                                         nlohmann::json description) {
+    // Instructions might be heavy weight because the recipes, loggers and checkers might have
+    // allocated some memory to manage their state.
+    return {name, execution, std::move(instructions), description};
   }
-  // Check if the config option was provided
-  if (!result.count("config")) {
-    std::cerr << "Warning: No configuration file specified. Use --config <path_to_config_file> to "
-                 "do so. Using the default now."
-              << std::endl;
-  } else {
-    // Get the path to the configuration file
-    return result["config"].template as<std::string>();
-  }
-  return {};
-}
 
-/**
- * @brief Parse a JSON file into a json object.
- *
- * This function opens the specified file and parses its contents into a json
- * object using the nlohmann::json library. If the file cannot be opened or if
- * there is an error parsing the JSON, the function throws a std::runtime_error
- * exception.
- *
- * @param filename The name of the JSON file to parse.
- * @return json The json object containing the parsed JSON data.
- */
-json parseJsonFile(const std::string& filename) {
-  // Open the file
-  std::ifstream file(filename);
-  if (!file.is_open()) {
-    throw std::runtime_error("Could not open file: " + filename);
-  }
-  // Parse the JSON file into an json object
-  json json;
-  try {
-    file >> json;
-  } catch (const json::parse_error& e) {
-    throw std::runtime_error("Error parsing JSON file: " + filename + " - " + e.what());
-  }
-  return json;
-}
+  struct NoChecker {
+    auto check([[maybe_unused]] const auto& result) {
+      return std::make_tuple(Actions::CHECK, true);
+    }
 
-/**
- * @brief Read the path to the configuration file from the command-line arguments.
- *
- * In doing so, it also handles other command-line arguments like `help` or `version`.
- *
- * @param argc The number of command-line arguments.
- * @param argv The array of command-line arguments.
- * @return std::optional<std::string> The path to the configuration file if it was
- * provided, or an empty optional value if it was not.
- */
+    nlohmann::json generateReport() { return {}; }
+  };
 
-auto readConfigFilePath(int argc, char* argv[]) {
-  auto options = defineCmdlineInterface();
-  try {
-    return extractConfigFilePath(argc, argv, options);
-  } catch (const cxxopts::OptionException& e) {
-    std::cerr << "Error parsing options: " << e.what() << std::endl;
-    exit(1);
-  }
-}
+  template <typename TRecipe> struct Aggregate {
+    using type = TRecipe;
 
-/// @brief The default configuration supplementing whatever is given by the user.
-json defaultConfig{};
+    TRecipe recipe;
 
-/**
- * @brief Supplement the provided configuration with default values.
- *
- * This function takes a json object representing the provided configuration
- * and merges it with a default configuration using the merge_patch method.
- * The resulting json object is returned.
- *
- * @param providedConfig The json object representing the provided configuration.
- * @return json The json object representing the supplemented configuration.
- */
-json supplementWithDefaults(const json& providedConfig) {
-  auto config = defaultConfig;
-  config.merge_patch(providedConfig);
-  return config;
-}
+    static constexpr size_t size() { return 1U; }
 
-/**
- * @brief Compose the final configuration for the program.
- *
- * This function is responsible for composing the final configuration for the
- * program. It first reads the path to the configuration file's name from the
- * command-line arguments. If a configuration file was provided, it parses the JSON file and
- * supplements it with default values. If no configuration file was provided, the function returns
- * the default configuration.
- *
- * @param argc The number of command-line arguments.
- * @param argv The array of command-line arguments.
- * @return json The json object representing the final configuration for the program.
- */
-json composeConfig(int argc, char* argv[]) {
-  auto configFilePath = readConfigFilePath(argc, argv);
-  if (configFilePath) {
-    auto providedConfig = parseJsonFile(configFilePath.value());
-    return supplementWithDefaults(providedConfig);
-  }
-  return defaultConfig;
-}
+    auto get([[maybe_unused]] auto& queue, [[maybe_unused]] auto const& device) {
+      return std::span<TRecipe, 1>(&recipe, 1);
+    }
 
-struct IndividualReports {};
+    auto generateReport() { return recipe.generateReport(); }
+  };
+
+  struct SimpleSumLogger {
+    std::chrono::nanoseconds mallocDuration;
+    std::uint32_t mallocCounter{0U};
+    std::chrono::nanoseconds freeDuration;
+    std::uint32_t freeCounter{0U};
+
+    auto call(const auto& func) {
+      auto start = std::chrono::high_resolution_clock::now();
+      auto result = func();
+      auto end = std::chrono::high_resolution_clock::now();
+
+      if (std::get<0>(result) == Actions::MALLOC) {
+        mallocDuration += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
+        mallocCounter++;
+      }
+      if (std::get<0>(result) == Actions::FREE) {
+        freeDuration += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
+        freeCounter++;
+      }
+
+      return result;
+    }
+
+    nlohmann::json generateReport() {
+      return {
+          {"allocation total time [ns]", mallocDuration.count()},
+          {"allocation average time [ns]",
+           mallocDuration.count() / (mallocCounter > 0 ? mallocCounter : 1U)},
+          {"allocation count", mallocCounter},
+          {"deallocation total time [ns]", freeDuration.count()},
+          {"deallocation average time [ns]",
+           freeDuration.count() / (freeCounter > 0 ? freeCounter : 1U)},
+          {"deallocation count ", freeCounter},
+      };
+    }
+  };
+
+  template <typename TRecipes, typename TLoggers, typename TCheckers> struct InstructionDetails {
+    TRecipes recipes{};
+    TLoggers loggers{};
+    TCheckers checkers{};
+
+    struct Package {
+      std::span<typename TRecipes::type, TRecipes::size()> recipes{};
+      std::span<typename TLoggers::type, TLoggers::size()> loggers{};
+      std::span<typename TCheckers::type, TCheckers::size()> checkers{};
+    };
+
+    auto sendTo([[maybe_unused]] auto const& device, auto& queue) {
+      auto r = recipes.get(queue, device);
+      auto l = loggers.get(queue, device);
+      auto c = checkers.get(queue, device);
+      return Package{r, l, c};
+    }
+  };
+
+  namespace singleSizeMalloc {
+
+    struct SingleSizeMallocRecipe {
+      static constexpr std::uint32_t allocationSize{16U};
+      static constexpr std::uint32_t numAllocations{100U};
+      std::array<std::unique_ptr<std::byte>, numAllocations> pointers{{}};
+      std::uint32_t counter{0U};
+
+      auto next() {
+        if (counter >= numAllocations)
+          return std::make_tuple(
+              Actions::STOP,
+              std::span<std::byte>{static_cast<std::byte*>(nullptr), allocationSize});
+        pointers[counter]
+            = std::unique_ptr<std::byte>(static_cast<std::byte*>(malloc(allocationSize)));
+        auto result
+            = std::make_tuple(Actions::MALLOC, std::span(pointers[counter].get(), allocationSize));
+        counter++;
+        return result;
+      }
+    };
+
+    auto makeInstructionDetails() {
+      auto recipes = Aggregate<SingleSizeMallocRecipe>{};
+      auto loggers = Aggregate<SimpleSumLogger>{};
+      auto checkers = Aggregate<NoChecker>{};
+      return InstructionDetails<decltype(recipes), decltype(loggers), decltype(checkers)>{
+          std::move(recipes), loggers, checkers};
+    }
+
+    auto composeSetup() {
+      return bundleUp("singleSizeMalloc", makeExecutionDetails(), makeInstructionDetails(), {});
+    }
+  }  // namespace singleSizeMalloc
+
+  namespace mallocFreeManySize {
+
+    struct MallocFreeRecipe {
+      std::vector<std::uint32_t> sizes{};
+      std::uint32_t currentIndex{0U};
+      void* currentPointer{nullptr};
+
+      auto next() {
+        if (currentIndex >= sizes.size())
+          return std::make_tuple(Actions::STOP,
+                                 std::span<std::byte>{static_cast<std::byte*>(nullptr), 0U});
+
+        if (currentPointer == nullptr) {
+          currentPointer = malloc(sizes[currentIndex]);
+          return std::make_tuple(
+              Actions::MALLOC,
+              std::span<std::byte>{static_cast<std::byte*>(currentPointer), sizes[currentIndex]});
+        } else {
+          free(currentPointer);
+          auto result = std::make_tuple(
+              Actions::FREE,
+              std::span<std::byte>{static_cast<std::byte*>(currentPointer), sizes[currentIndex]});
+          currentPointer = nullptr;
+          currentIndex++;
+          return result;
+        }
+      }
+    };
+
+    auto makeInstructionDetails() {
+      auto recipes = Aggregate<MallocFreeRecipe>{{{16U, 256U, 1024U}}};
+      auto loggers = Aggregate<SimpleSumLogger>{};
+      auto checkers = Aggregate<NoChecker>{};
+      return InstructionDetails<decltype(recipes), decltype(loggers), decltype(checkers)>{
+          std::move(recipes), loggers, checkers};
+    }
+
+    auto composeSetup() {
+      return bundleUp("mallocFreeManySize", makeExecutionDetails(), makeInstructionDetails(), {});
+    }
+
+  }  // namespace mallocFreeManySize
+
+}  // namespace setups
 
 /**
  * @brief Compose a report from the provided metadata, configuration, and individual reports.
@@ -171,21 +207,21 @@ struct IndividualReports {};
  * @param individualReports The json object representing the individual reports.
  * @return json The json object representing the composed report.
  */
-json composeReport(json const& metadata, json const& config,
-                   [[maybe_unused]] IndividualReports const& individualReports) {
+json composeReport(json const& metadata, json const& benchmarkReports) {
   json report{};
   report["metadata"] = metadata;
-  report["config"] = config;
+  report["benchmarks"] = benchmarkReports;
   return report;
 }
 
 void output(json const& report) { std::cout << report << std::endl; }
 
-auto main(int argc, char* argv[]) -> int {
-  auto metadata = membenchmc::gatherMetadata();
-  auto config = composeConfig(argc, argv);
-  auto reports = IndividualReports{};
-  auto report = composeReport(metadata, config, reports);
+auto main() -> int {
+  auto metadata = gatherMetadata();
+  auto singleSizeMallocSetup = setups::singleSizeMalloc::composeSetup();
+  auto mallocFreeManySizeSetup = setups::mallocFreeManySize::composeSetup();
+  auto benchmarkReports = runBenchmarks(singleSizeMallocSetup, mallocFreeManySizeSetup);
+  auto report = composeReport(metadata, benchmarkReports);
   output(report);
   return EXIT_SUCCESS;
 }

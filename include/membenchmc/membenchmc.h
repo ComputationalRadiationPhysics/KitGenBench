@@ -1,36 +1,38 @@
 #pragma once
 #include <alpaka/alpaka.hpp>
 #include <nlohmann/json.hpp>
-#include <optional>
 
 #include "alpaka/queue/Properties.hpp"
 
 namespace membenchmc {
 
-  inline auto initialiseBenchmark([[maybe_unused]] nlohmann::json const& config) {
-    return std::make_tuple(1, 2, 3);
-  }
+  namespace Actions {
+    // This namespace mimics an enum but is supposed to be extended by the user to allow for more
+    // setups. Library-defined actions have negative values, user-defined positive ones.
+    constexpr int STOP = -1;
+    constexpr int CHECK = -2;
+  }  // namespace Actions
 
-  struct StepResult {
-    std::string action{};
-    void* pointer{};
+  template <typename TAcc, typename TDev> struct ExecutionDetails {
+    alpaka::WorkDivMembers<alpaka::Dim<TAcc>, alpaka::Idx<TAcc>> workdiv{};
+    TDev device{};
   };
 
   template <typename TRecipe>
   concept Recipe = requires(TRecipe recipe) {
-    { recipe.next() } -> std::same_as<std::optional<StepResult>>;
+    { std::get<0>(recipe.next()) } -> std::same_as<decltype(Actions::STOP)>;
   };
 
-  template <typename TChecker>
-  std::optional<StepResult> check([[maybe_unused]] TChecker& checker,
-                                  [[maybe_unused]] std::optional<StepResult> result) {
-    return {};
-  }
+  template <typename TLogger, typename TFunctor>
+  concept Logger = requires(TLogger logger, TFunctor func) {
+    { (logger.call(func)) } -> std::same_as<decltype(func())>;
+  };
 
-  template <typename TLogger>
-  auto callLogged([[maybe_unused]] TLogger& logger, [[maybe_unused]] auto const& func) {
-    return func();
-  }
+  template <typename TChecker, typename TResult>
+  concept Checker = requires(TChecker checker, TResult result) {
+    std::get<0>(checker.check(result)) == Actions::CHECK;
+    { std::get<1>(checker.check(result)) } -> std::same_as<bool>;
+  };
 
   struct BenchmarkKernel {
     template <typename TAcc> ALPAKA_FN_ACC auto operator()(TAcc const& acc, auto instructions) const
@@ -44,12 +46,20 @@ namespace membenchmc {
       auto& myLogger = instructions.loggers[linearizedGlobalThreadIdx];
       auto& myChecker = instructions.checkers[linearizedGlobalThreadIdx];
 
-      std::optional<StepResult> result{};
-      do {
-        result = myLogger.call([&myRecipe] { return myRecipe.next(); });
-        myLogger.call([&myChecker, &result] { return check(myChecker, result); });
-      } while (result);
+      bool recipeExhausted = false;
+      while (not recipeExhausted) {
+        auto result = myLogger.call([&myRecipe] { return myRecipe.next(); });
+        myLogger.call([&myChecker, &result] { return myChecker.check(result); });
+        recipeExhausted = (std::get<0>(result) == Actions::STOP);
+      }
     }
+  };
+
+  template <typename TExecutionDetails, typename TInstructionDetails> struct Setup {
+    std::string name{};
+    TExecutionDetails execution{};
+    TInstructionDetails instructions{};
+    nlohmann::json description{};
   };
 
   namespace detail {
@@ -72,14 +82,18 @@ namespace membenchmc {
 
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-    return {{"totalRuntime [ns]", duration},
+    return {{"total runtime [ns]", duration},
             {"logs", setup.instructions.loggers.generateReport()},
             {"checks", setup.instructions.checkers.generateReport()}};
   };
 
   template <typename... TSetup> nlohmann::json runBenchmarks(TSetup&... setup) {
+    auto start = std::chrono::high_resolution_clock::now();
     auto finalReport = nlohmann::json::object();
     (finalReport.push_back({setup.name, runBenchmark(setup)}), ...);
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+    finalReport["total runtime [ns]"] = duration;
     return finalReport;
   };
 
