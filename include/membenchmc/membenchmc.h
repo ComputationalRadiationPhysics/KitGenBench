@@ -84,7 +84,8 @@ namespace membenchmc {
     auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
     return {{"total runtime [ns]", duration},
             {"logs", setup.instructions.loggers.generateReport()},
-            {"checks", setup.instructions.checkers.generateReport()}};
+            {"checks", setup.instructions.checkers.generateReport()},
+            {"description", setup.description}};
   };
 
   template <typename... TSetup> nlohmann::json runBenchmarks(TSetup&... setup) {

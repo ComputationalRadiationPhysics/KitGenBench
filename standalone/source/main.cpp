@@ -5,6 +5,7 @@
 #include <cxxopts.hpp>
 #include <memory>
 #include <tuple>
+#include <vector>
 
 using nlohmann::json;
 using namespace membenchmc;
@@ -27,10 +28,10 @@ namespace setups {
   }
 
   template <typename TExecutionDetails, typename TInstructionDetails>
-  Setup<TExecutionDetails, TInstructionDetails> bundleUp(std::string name,
-                                                         TExecutionDetails execution,
-                                                         TInstructionDetails instructions,
-                                                         nlohmann::json description) {
+  Setup<TExecutionDetails, TInstructionDetails> composeSetup(std::string name,
+                                                             TExecutionDetails execution,
+                                                             TInstructionDetails instructions,
+                                                             nlohmann::json description) {
     // Instructions might be heavy weight because the recipes, loggers and checkers might have
     // allocated some memory to manage their state.
     return {name, execution, std::move(instructions), description};
@@ -145,7 +146,9 @@ namespace setups {
     }
 
     auto composeSetup() {
-      return bundleUp("singleSizeMalloc", makeExecutionDetails(), makeInstructionDetails(), {});
+      return composeSetup("singleSizeMalloc", makeExecutionDetails(), makeInstructionDetails(),
+                          {{"allocation size [bytes]", SingleSizeMallocRecipe::allocationSize},
+                           {"number of allocations", SingleSizeMallocRecipe::numAllocations}});
     }
   }  // namespace singleSizeMalloc
 
@@ -178,16 +181,32 @@ namespace setups {
       }
     };
 
+    std::vector<std::uint32_t> ALLOCATION_SIZES
+        = {16U, 256U, 1024U, 16U, 16U, 256U, 16U, 1024U, 1024U};
     auto makeInstructionDetails() {
-      auto recipes = Aggregate<MallocFreeRecipe>{{{16U, 256U, 1024U}}};
+      auto recipes = Aggregate<MallocFreeRecipe>{{ALLOCATION_SIZES}};
       auto loggers = Aggregate<SimpleSumLogger>{};
       auto checkers = Aggregate<NoChecker>{};
       return InstructionDetails<decltype(recipes), decltype(loggers), decltype(checkers)>{
           std::move(recipes), loggers, checkers};
     }
 
+    namespace detail {
+      template <typename T> T unique(T const& values) {
+        // It's a pity but the following are algorithms and not "adaptors", so the pipe operator
+        // doesn't work.
+        T tmp = values;
+        std::ranges::sort(tmp);
+        const auto [new_end, old_end] = std::ranges::unique(tmp);
+        return {std::begin(tmp), new_end};
+      }
+    }  // namespace detail
+
     auto composeSetup() {
-      return bundleUp("mallocFreeManySize", makeExecutionDetails(), makeInstructionDetails(), {});
+      return composeSetup(
+          "mallocFreeManySize", makeExecutionDetails(), makeInstructionDetails(),
+          {{"number of allocations", ALLOCATION_SIZES.size()},
+           {"available allocation sizes [bytes]", detail::unique(ALLOCATION_SIZES)}});
     }
 
   }  // namespace mallocFreeManySize
