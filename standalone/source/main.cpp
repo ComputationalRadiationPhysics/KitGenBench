@@ -96,15 +96,22 @@ namespace setups {
     }
   };
 
+  template <typename T> struct DeviceAggregate {
+    std::span<typename T::type, T::size()> instances{};
+    T::type load([[maybe_unused]] auto const index) { return {}; }
+
+    void store(T::type&& instance, auto const index) { instances[index] = std::move(instance); }
+  };
+
   template <typename TRecipes, typename TLoggers, typename TCheckers> struct InstructionDetails {
     TRecipes recipes{};
     TLoggers loggers{};
     TCheckers checkers{};
 
     struct Package {
-      std::span<typename TRecipes::type, TRecipes::size()> recipes{};
-      std::span<typename TLoggers::type, TLoggers::size()> loggers{};
-      std::span<typename TCheckers::type, TCheckers::size()> checkers{};
+      DeviceAggregate<TRecipes> recipes{};
+      DeviceAggregate<TLoggers> loggers{};
+      DeviceAggregate<TCheckers> checkers{};
     };
 
     auto sendTo([[maybe_unused]] auto const& device, auto& queue) {

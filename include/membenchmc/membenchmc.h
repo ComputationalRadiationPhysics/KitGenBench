@@ -42,9 +42,10 @@ namespace membenchmc {
       auto const linearizedGlobalThreadIdx
           = alpaka::mapIdx<1u>(globalThreadIdx, globalThreadExtent).x();
 
-      auto& myRecipe = instructions.recipes[linearizedGlobalThreadIdx];
-      auto& myLogger = instructions.loggers[linearizedGlobalThreadIdx];
-      auto& myChecker = instructions.checkers[linearizedGlobalThreadIdx];
+      // Get a local copy, so we work on registers and don't strain global memory too much.
+      auto myRecipe = instructions.recipes.load(linearizedGlobalThreadIdx);
+      auto myLogger = instructions.loggers.load(linearizedGlobalThreadIdx);
+      auto myChecker = instructions.checkers.load(linearizedGlobalThreadIdx);
 
       bool recipeExhausted = false;
       while (not recipeExhausted) {
@@ -52,6 +53,11 @@ namespace membenchmc {
         myLogger.call([&myChecker, &result] { return myChecker.check(result); });
         recipeExhausted = (std::get<0>(result) == Actions::STOP);
       }
+
+      // Put our local copy back from where we got it.
+      instructions.recipes.store(std::move(myRecipe), linearizedGlobalThreadIdx);
+      instructions.loggers.store(std::move(myLogger), linearizedGlobalThreadIdx);
+      instructions.checkers.store(std::move(myChecker), linearizedGlobalThreadIdx);
     }
   };
 
