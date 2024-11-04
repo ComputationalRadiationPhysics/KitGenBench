@@ -9,8 +9,8 @@ namespace membenchmc {
   namespace Actions {
     // This namespace mimics an enum but is supposed to be extended by the user to allow for more
     // setups. Library-defined actions have negative values, user-defined positive ones.
-    constexpr int STOP = -1;
-    constexpr int CHECK = -2;
+    static constexpr int STOP = -1;
+    static constexpr int CHECK = -2;
   }  // namespace Actions
 
   template <typename TAcc, typename TDev> struct ExecutionDetails {
@@ -49,8 +49,8 @@ namespace membenchmc {
 
       bool recipeExhausted = false;
       while (not recipeExhausted) {
-        auto result = myLogger.call([&myRecipe] { return myRecipe.next(); });
-        myLogger.call([&myChecker, &result] { return myChecker.check(result); });
+        auto result = myLogger.call([&myRecipe]() mutable { return myRecipe.next(); });
+        myLogger.call([&myChecker, &result]() mutable { return myChecker.check(result); });
         recipeExhausted = (std::get<0>(result) == Actions::STOP);
       }
 

@@ -10,8 +10,8 @@ using nlohmann::json;
 using namespace membenchmc;
 
 namespace membenchmc::Actions {
-  constexpr int MALLOC = 1;
-  constexpr int FREE = 2;
+  static constexpr int MALLOC = 1;
+  static constexpr int FREE = 2;
 }  // namespace membenchmc::Actions
 
 namespace setups {
@@ -37,7 +37,7 @@ namespace setups {
   }
 
   struct NoChecker {
-    auto check([[maybe_unused]] const auto& result) {
+    ALPAKA_FN_ACC auto check([[maybe_unused]] const auto& result) {
       return std::make_tuple(Actions::CHECK, true);
     }
 
@@ -64,7 +64,7 @@ namespace setups {
     std::chrono::nanoseconds freeDuration;
     std::uint32_t freeCounter{0U};
 
-    auto call(const auto& func) {
+    ALPAKA_FN_INLINE ALPAKA_FN_ACC auto call(auto func) {
       auto start = std::chrono::high_resolution_clock::now();
       auto result = func();
       auto end = std::chrono::high_resolution_clock::now();
@@ -98,9 +98,11 @@ namespace setups {
   template <typename T> struct DeviceAggregate {
     std::span<typename T::type, T::size()> instances{};
 
-    T::type load([[maybe_unused]] auto const index) { return {}; }
+    ALPAKA_FN_ACC T::type load([[maybe_unused]] auto const index) { return {}; }
 
-    void store(T::type&& instance, auto const index) { instances[index] = std::move(instance); }
+    ALPAKA_FN_ACC void store(T::type&& instance, auto const index) {
+      instances[index] = std::move(instance);
+    }
   };
 
   template <typename TRecipes, typename TLoggers, typename TCheckers> struct InstructionDetails {
@@ -127,18 +129,17 @@ namespace setups {
     struct SingleSizeMallocRecipe {
       static constexpr std::uint32_t allocationSize{16U};
       static constexpr std::uint32_t numAllocations{100U};
-      std::array<std::unique_ptr<std::byte>, numAllocations> pointers{{}};
+      std::array<std::byte*, numAllocations> pointers{{}};
       std::uint32_t counter{0U};
 
-      auto next() {
+      ALPAKA_FN_ACC auto next() {
         if (counter >= numAllocations)
           return std::make_tuple(
               Actions::STOP,
               std::span<std::byte>{static_cast<std::byte*>(nullptr), allocationSize});
-        pointers[counter]
-            = std::unique_ptr<std::byte>(static_cast<std::byte*>(malloc(allocationSize)));
+        pointers[counter] = static_cast<std::byte*>(malloc(allocationSize));
         auto result
-            = std::make_tuple(Actions::MALLOC, std::span(pointers[counter].get(), allocationSize));
+            = std::make_tuple(Actions::MALLOC, std::span(pointers[counter], allocationSize));
         counter++;
         return result;
       }
@@ -166,7 +167,7 @@ namespace setups {
       std::uint32_t currentIndex{0U};
       void* currentPointer{nullptr};
 
-      auto next() {
+      ALPAKA_FN_ACC auto next() {
         if (currentIndex >= sizes.size())
           return std::make_tuple(Actions::STOP,
                                  std::span<std::byte>{static_cast<std::byte*>(nullptr), 0U});
