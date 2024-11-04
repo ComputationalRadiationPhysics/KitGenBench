@@ -31,7 +31,7 @@ jobs:
           sudo apt-get install libboost-all-dev
 
       - name: configure
-        run: cmake -Sstandalone -Bbuild -DCMAKE_BUILD_TYPE=Debug
+        run: cmake -Sstandalone -Bbuild -DCMAKE_BUILD_TYPE=Debug -Dalpaka_ACC_CPU_B_SEQ_T_SEQ_ENABLE:BOOL=ON
 
       - name: build
         run: cmake --build build -j4
