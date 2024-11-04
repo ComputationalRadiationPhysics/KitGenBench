@@ -61,7 +61,12 @@ if(NOT TEST_INSTALLED_VERSION)
     )
         target_compile_options(
             MemBenchMC
-            PUBLIC -Wall -Wpedantic -Wextra -Werror
+            PUBLIC
+                -Wall
+                "$<$<COMPILE_LANGUAGE:CXX>:-Wpedantic>"
+                -Wextra
+                -Werror
+                "$<$<COMPILE_LANGUAGE:CUDA>:all-warnings>"
         )
     elseif(MSVC)
         target_compile_options(MemBenchMC PUBLIC /W4 /WX)
