@@ -54,7 +54,7 @@ file(
 
 # Note: for header-only libraries change all PUBLIC flags to INTERFACE and create an interface
 # target: add_library(${PROJECT_NAME} INTERFACE)
-add_library(${PROJECT_NAME} ${headers} ${sources})
+alpaka_add_library(${PROJECT_NAME} ${headers} ${sources})
 set_target_properties(
     ${PROJECT_NAME}
     PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF
