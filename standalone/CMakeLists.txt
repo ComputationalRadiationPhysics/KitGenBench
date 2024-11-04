@@ -14,21 +14,9 @@ include(../cmake/tools.cmake)
 include(../cmake/CPM.cmake)
 
 cpmaddpackage(
-  GITHUB_REPOSITORY jarro2783/cxxopts
-  VERSION 3.0.0
-  OPTIONS "CXXOPTS_BUILD_EXAMPLES NO" "CXXOPTS_BUILD_TESTS NO" "CXXOPTS_ENABLE_INSTALL YES"
-)
-
-cpmaddpackage(
   NAME nlohmann_json
   GITHUB_REPOSITORY nlohmann/json
   VERSION 3.11.3 NO_TESTS
-)
-
-cpmaddpackage(
-  NAME boost
-  GITHUB_REPOSITORY boostorg/boost
-  GIT_TAG boost-1.86.0
 )
 
 cpmaddpackage(
@@ -57,10 +45,6 @@ set_target_properties(
 target_link_libraries(
     ${PROJECT_NAME}
     MemBenchMC::MemBenchMC
-    cxxopts
     nlohmann_json::nlohmann_json
     alpaka::alpaka
-    Boost::predef
-    Boost::core
-    Boost::atomic
 )

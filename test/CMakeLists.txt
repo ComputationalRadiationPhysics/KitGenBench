@@ -27,12 +27,6 @@ cpmaddpackage(
 )
 
 cpmaddpackage(
-  NAME boost
-  GITHUB_REPOSITORY boostorg/boost
-  GIT_TAG boost-1.86.0
-)
-
-cpmaddpackage(
   NAME alpaka
   GITHUB_REPOSITORY alpaka-group/alpaka
   GIT_TAG 1.2.0
@@ -54,9 +48,6 @@ target_link_libraries(
     MemBenchMC::MemBenchMC
     nlohmann_json::nlohmann_json
     alpaka::alpaka
-    Boost::predef
-    Boost::core
-    Boost::atomic
 )
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20)
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD_REQUIRED ON)

@@ -2,7 +2,6 @@
 #include <membenchmc/version.h>
 
 #include <cstdlib>
-#include <cxxopts.hpp>
 #include <memory>
 #include <tuple>
 #include <vector>

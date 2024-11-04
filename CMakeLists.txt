@@ -30,12 +30,6 @@ cpmaddpackage(
 )
 
 cpmaddpackage(
-  NAME boost
-  GITHUB_REPOSITORY boostorg/boost
-  GIT_TAG boost-1.86.0
-)
-
-cpmaddpackage(
   NAME alpaka
   GITHUB_REPOSITORY alpaka-group/alpaka
   GIT_TAG 1.2.0
@@ -78,9 +72,6 @@ target_link_libraries(
     PRIVATE
         "$<BUILD_INTERFACE:nlohmann_json::nlohmann_json>"
         "$<BUILD_INTERFACE:alpaka::alpaka>"
-        "$<BUILD_INTERFACE:Boost::predef>"
-        "$<BUILD_INTERFACE:Boost::core>"
-        "$<BUILD_INTERFACE:Boost::atomic>"
 )
 
 target_include_directories(
