@@ -11,8 +11,8 @@ using nlohmann::json;
 using namespace membenchmc;
 
 namespace membenchmc::Actions {
-  constexpr int MALLOC = 1U;
-  constexpr int FREE = 2U;
+  constexpr int MALLOC = 1;
+  constexpr int FREE = 2;
 }  // namespace membenchmc::Actions
 
 namespace setups {
@@ -98,6 +98,7 @@ namespace setups {
 
   template <typename T> struct DeviceAggregate {
     std::span<typename T::type, T::size()> instances{};
+
     T::type load([[maybe_unused]] auto const index) { return {}; }
 
     void store(T::type&& instance, auto const index) { instances[index] = std::move(instance); }
