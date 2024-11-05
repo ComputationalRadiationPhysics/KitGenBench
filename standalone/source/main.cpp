@@ -1,4 +1,5 @@
 #include <membenchmc/membenchmc.h>
+#include <membenchmc/setup.h>
 #include <membenchmc/version.h>
 
 #include <alpaka/acc/AccCpuSerial.hpp>
@@ -15,17 +16,18 @@
 using nlohmann::json;
 using namespace membenchmc;
 
-using Dim = alpaka::DimInt<1>;
-using Idx = std::uint32_t;
-using Acc = alpaka::TagToAcc<std::remove_cvref_t<decltype(std::get<0>(alpaka::EnabledAccTags{}))>,
-                             Dim, Idx>;
-
 namespace membenchmc::Actions {
   static constexpr int MALLOC = 1;
   static constexpr int FREE = 2;
 }  // namespace membenchmc::Actions
 
+using Dim = alpaka::DimInt<1>;
+using Idx = std::uint32_t;
+using Acc = alpaka::TagToAcc<std::remove_cvref_t<decltype(std::get<0>(alpaka::EnabledAccTags{}))>,
+                             Dim, Idx>;
+
 namespace setups {
+
   auto makeExecutionDetails() {
     auto const platformAcc = alpaka::Platform<Acc>{};
     auto const dev = alpaka::getDevByIdx(platformAcc, 0);
@@ -33,24 +35,6 @@ namespace setups {
         alpaka::Vec<Dim, Idx>{1}, alpaka::Vec<Dim, Idx>{1}, alpaka::Vec<Dim, Idx>{1}};
     return ExecutionDetails<Acc, decltype(dev)>{workdiv, dev};
   }
-
-  template <typename TExecutionDetails, typename TInstructionDetails>
-  Setup<TExecutionDetails, TInstructionDetails> composeSetup(std::string name,
-                                                             TExecutionDetails execution,
-                                                             TInstructionDetails instructions,
-                                                             nlohmann::json description) {
-    // Instructions might be heavy weight because the recipes, loggers and checkers might have
-    // allocated some memory to manage their state.
-    return {name, execution, std::move(instructions), description};
-  }
-
-  struct NoChecker {
-    ALPAKA_FN_ACC auto check([[maybe_unused]] const auto& result) {
-      return std::make_tuple(Actions::CHECK, true);
-    }
-
-    nlohmann::json generateReport() { return {}; }
-  };
 
   template <typename TRecipe> struct Aggregate {
     using type = TRecipe;
@@ -107,7 +91,7 @@ namespace setups {
     ALPAKA_FN_INLINE ALPAKA_FN_ACC auto call(auto const& acc, auto func) {
       using Clock = DeviceClock<alpaka::AccToTag<std::remove_cvref_t<decltype(acc)>>>;
       auto start = Clock::clock();
-      auto result = func();
+      auto result = func(acc);
       auto end = Clock::clock();
 
       if (std::get<0>(result) == Actions::MALLOC) {
@@ -172,7 +156,7 @@ namespace setups {
       std::array<std::byte*, numAllocations> pointers{{}};
       std::uint32_t counter{0U};
 
-      ALPAKA_FN_ACC auto next() {
+      ALPAKA_FN_ACC auto next([[maybe_unused]] const auto& acc) {
         if (counter >= numAllocations)
           return std::make_tuple(
               Actions::STOP,
@@ -183,12 +167,14 @@ namespace setups {
         counter++;
         return result;
       }
+
+      nlohmann::json generateReport() { return {}; }
     };
 
     auto makeInstructionDetails() {
       auto recipes = Aggregate<SingleSizeMallocRecipe>{};
       auto loggers = Aggregate<SimpleSumLogger<alpaka::AccToTag<Acc>>>{};
-      auto checkers = Aggregate<NoChecker>{};
+      auto checkers = Aggregate<setup::NoChecker>{};
       return InstructionDetails<decltype(recipes), decltype(loggers), decltype(checkers)>{
           std::move(recipes), loggers, checkers};
     }
@@ -198,6 +184,7 @@ namespace setups {
                           {{"allocation size [bytes]", SingleSizeMallocRecipe::allocationSize},
                            {"number of allocations", SingleSizeMallocRecipe::numAllocations}});
     }
+
   }  // namespace singleSizeMalloc
 
   namespace mallocFreeManySize {
@@ -207,7 +194,7 @@ namespace setups {
       std::uint32_t currentIndex{0U};
       void* currentPointer{nullptr};
 
-      ALPAKA_FN_ACC auto next() {
+      ALPAKA_FN_ACC auto next([[maybe_unused]] const auto& acc) {
         if (currentIndex >= sizes.size())
           return std::make_tuple(Actions::STOP,
                                  std::span<std::byte>{static_cast<std::byte*>(nullptr), 0U});
@@ -227,6 +214,8 @@ namespace setups {
           return result;
         }
       }
+
+      nlohmann::json generateReport() { return {}; }
     };
 
     std::vector<std::uint32_t> ALLOCATION_SIZES
@@ -234,7 +223,7 @@ namespace setups {
     auto makeInstructionDetails() {
       auto recipes = Aggregate<MallocFreeRecipe>{{ALLOCATION_SIZES}};
       auto loggers = Aggregate<SimpleSumLogger<alpaka::AccToTag<Acc>>>{};
-      auto checkers = Aggregate<NoChecker>{};
+      auto checkers = Aggregate<setup::NoChecker>{};
       return InstructionDetails<decltype(recipes), decltype(loggers), decltype(checkers)>{
           std::move(recipes), loggers, checkers};
     }

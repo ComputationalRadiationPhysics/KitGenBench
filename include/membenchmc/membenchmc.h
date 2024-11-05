@@ -1,17 +1,12 @@
 #pragma once
+#include <membenchmc/setup.h>
+
 #include <alpaka/alpaka.hpp>
 #include <nlohmann/json.hpp>
 
 #include "alpaka/queue/Properties.hpp"
 
 namespace membenchmc {
-
-  namespace Actions {
-    // This namespace mimics an enum but is supposed to be extended by the user to allow for more
-    // setups. Library-defined actions have negative values, user-defined positive ones.
-    static constexpr int STOP = -1;
-    static constexpr int CHECK = -2;
-  }  // namespace Actions
 
   template <typename TAcc, typename TDev> struct ExecutionDetails {
     alpaka::WorkDivMembers<alpaka::Dim<TAcc>, alpaka::Idx<TAcc>> workdiv{};
@@ -49,8 +44,11 @@ namespace membenchmc {
 
       bool recipeExhausted = false;
       while (not recipeExhausted) {
-        auto result = myLogger.call(acc, [&myRecipe]() mutable { return myRecipe.next(); });
-        myLogger.call(acc, [&myChecker, &result]() mutable { return myChecker.check(result); });
+        auto result = myLogger.call(
+            acc, [&myRecipe](const auto& acc) mutable { return myRecipe.next(acc); });
+        myLogger.call(acc, [&myChecker, &result](const auto& acc) mutable {
+          return myChecker.check(acc, result);
+        });
         recipeExhausted = (std::get<0>(result) == Actions::STOP);
       }
 
@@ -59,13 +57,6 @@ namespace membenchmc {
       instructions.loggers.store(std::move(myLogger), linearizedGlobalThreadIdx);
       instructions.checkers.store(std::move(myChecker), linearizedGlobalThreadIdx);
     }
-  };
-
-  template <typename TExecutionDetails, typename TInstructionDetails> struct Setup {
-    std::string name{};
-    TExecutionDetails execution{};
-    TInstructionDetails instructions{};
-    nlohmann::json description{};
   };
 
   namespace detail {
@@ -89,6 +80,7 @@ namespace membenchmc {
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
     return {{"total runtime [ns]", duration},
+            {"recipes", setup.instructions.recipes.generateReport()},
             {"logs", setup.instructions.loggers.generateReport()},
             {"checks", setup.instructions.checkers.generateReport()},
             {"description", setup.description}};
