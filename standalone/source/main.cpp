@@ -2,6 +2,8 @@
 #include <membenchmc/membenchmc.h>
 #include <membenchmc/setup.h>
 #include <membenchmc/version.h>
+
+#include <alpaka/workdiv/WorkDivMembers.hpp>
 #ifdef alpaka_ACC_GPU_CUDA_ENABLED
 #  include <cuda_runtime.h>
 #endif  //  alpaka_ACC_GPU_CUDA_ENABLE
@@ -34,8 +36,13 @@ namespace membenchmc::Actions {
 auto makeExecutionDetails() {
   auto const platformAcc = alpaka::Platform<Acc>{};
   auto const dev = alpaka::getDevByIdx(platformAcc, 0);
-  auto workdiv = alpaka::WorkDivMembers<Dim, Idx>{
-      alpaka::Vec<Dim, Idx>{1}, alpaka::Vec<Dim, Idx>{1}, alpaka::Vec<Dim, Idx>{1}};
+  auto workdiv = []() -> alpaka::WorkDivMembers<Dim, Idx> {
+    if constexpr (std::is_same_v<alpaka::AccToTag<Acc>, alpaka::TagCpuSerial>) {
+      return {{1U}, {1U}, {1U}};
+    } else {
+      return alpaka::WorkDivMembers<Dim, Idx>{{1024 / 256}, {256U}, {1U}};
+    }
+  }();
   return membenchmc::ExecutionDetails<Acc, decltype(dev)>{workdiv, dev};
 }
 
@@ -114,7 +121,7 @@ template <typename T> struct AccumulateResultsProvider {
 namespace setups {
   struct SingleSizeMallocRecipe {
     static constexpr std::uint32_t allocationSize{16U};
-    static constexpr std::uint32_t numAllocations{100U};
+    static constexpr std::uint32_t numAllocations{256U};
     std::array<std::byte*, numAllocations> pointers{{}};
     std::uint32_t counter{0U};
 

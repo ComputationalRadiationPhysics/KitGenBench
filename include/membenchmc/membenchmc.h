@@ -2,6 +2,7 @@
 #include <membenchmc/setup.h>
 
 #include <alpaka/alpaka.hpp>
+#include <chrono>
 #include <nlohmann/json.hpp>
 
 #include "alpaka/queue/Properties.hpp"
@@ -80,8 +81,8 @@ namespace membenchmc {
     alpaka::wait(queue);
 
     auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-    nlohmann::json result = {{"total runtime [ns]", duration}, {"description", setup.description}};
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    nlohmann::json result = {{"total runtime [ms]", duration}, {"description", setup.description}};
     result.merge_patch(setup.instructions.generateReport());
     return result;
   };
@@ -91,8 +92,8 @@ namespace membenchmc {
     auto finalReport = nlohmann::json::object();
     (finalReport.push_back({setup.name, runBenchmark(setup)}), ...);
     auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-    finalReport["total runtime [ns]"] = duration;
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    finalReport["total runtime [ms]"] = duration;
     return finalReport;
   };
 
