@@ -30,17 +30,17 @@ namespace membenchmc {
   };
 
   struct BenchmarkKernel {
-    template <typename TAcc> ALPAKA_FN_ACC auto operator()(TAcc const& acc, auto instructions) const
-        -> void {
+    template <typename TAcc>
+    ALPAKA_FN_ACC auto operator()(TAcc const& acc, auto* instructions) const -> void {
       auto const globalThreadIdx = alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc);
       auto const globalThreadExtent = alpaka::getWorkDiv<alpaka::Grid, alpaka::Threads>(acc);
       auto const linearizedGlobalThreadIdx
           = alpaka::mapIdx<1u>(globalThreadIdx, globalThreadExtent).x();
 
       // Get a local copy, so we work on registers and don't strain global memory too much.
-      auto myRecipe = instructions.recipes.load(linearizedGlobalThreadIdx);
-      auto myLogger = instructions.loggers.load(linearizedGlobalThreadIdx);
-      auto myChecker = instructions.checkers.load(linearizedGlobalThreadIdx);
+      auto myRecipe = instructions->recipes.load(linearizedGlobalThreadIdx);
+      auto myLogger = instructions->loggers.load(linearizedGlobalThreadIdx);
+      auto myChecker = instructions->checkers.load(linearizedGlobalThreadIdx);
 
       bool recipeExhausted = false;
       while (not recipeExhausted) {
@@ -53,9 +53,9 @@ namespace membenchmc {
       }
 
       // Put our local copy back from where we got it.
-      instructions.recipes.store(std::move(myRecipe), linearizedGlobalThreadIdx);
-      instructions.loggers.store(std::move(myLogger), linearizedGlobalThreadIdx);
-      instructions.checkers.store(std::move(myChecker), linearizedGlobalThreadIdx);
+      instructions->recipes.store(acc, std::move(myRecipe), linearizedGlobalThreadIdx);
+      instructions->loggers.store(acc, std::move(myLogger), linearizedGlobalThreadIdx);
+      instructions->checkers.store(acc, std::move(myChecker), linearizedGlobalThreadIdx);
     }
   };
 
@@ -76,14 +76,14 @@ namespace membenchmc {
     alpaka::exec<Acc>(queue, setup.execution.workdiv, BenchmarkKernel{},
                       setup.instructions.sendTo(setup.execution.device, queue));
     alpaka::wait(queue);
+    setup.instructions.retrieveFrom(setup.execution.device, queue);
+    alpaka::wait(queue);
 
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-    return {{"total runtime [ns]", duration},
-            {"recipes", setup.instructions.recipes.generateReport()},
-            {"logs", setup.instructions.loggers.generateReport()},
-            {"checks", setup.instructions.checkers.generateReport()},
-            {"description", setup.description}};
+    nlohmann::json result = {{"total runtime [ns]", duration}, {"description", setup.description}};
+    result.merge_patch(setup.instructions.generateReport());
+    return result;
   };
 
   template <typename... TSetup> nlohmann::json runBenchmarks(TSetup&... setup) {

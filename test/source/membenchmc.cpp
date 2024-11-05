@@ -36,7 +36,7 @@ namespace setups {
 
   template <typename T> struct Aggregate {
     ALPAKA_FN_ACC T load(auto const) { return {}; }
-    ALPAKA_FN_ACC void store(T&&, auto const) {}
+    ALPAKA_FN_ACC void store(const auto&, T&&, auto const) {}
     nlohmann::json generateReport() { return {}; }
   };
 
@@ -52,7 +52,15 @@ namespace setups {
       // This is not exactly how it's supposed to be used (or at least it's not necessary). You
       // can return any object following the concept of InstructionDetails and typically this
       // would be something more specialised for the deivce.
-      return InstructionDetails{};
+      return this;
+    }
+
+    auto retrieveFrom([[maybe_unused]] auto const& device, [[maybe_unused]] auto& queue) {}
+
+    nlohmann::json generateReport() {
+      return {{"recipes", recipes.generateReport()},
+              {"logs", loggers.generateReport()},
+              {"checks", checkers.generateReport()}};
     }
   };
 
