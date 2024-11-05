@@ -49,8 +49,8 @@ namespace membenchmc {
 
       bool recipeExhausted = false;
       while (not recipeExhausted) {
-        auto result = myLogger.call([&myRecipe]() mutable { return myRecipe.next(); });
-        myLogger.call([&myChecker, &result]() mutable { return myChecker.check(result); });
+        auto result = myLogger.call(acc, [&myRecipe]() mutable { return myRecipe.next(); });
+        myLogger.call(acc, [&myChecker, &result]() mutable { return myChecker.check(result); });
         recipeExhausted = (std::get<0>(result) == Actions::STOP);
       }
 

@@ -1,13 +1,24 @@
 #include <membenchmc/membenchmc.h>
 #include <membenchmc/version.h>
 
+#include <alpaka/acc/AccCpuSerial.hpp>
+#include <alpaka/acc/Tag.hpp>
+#include <alpaka/core/Common.hpp>
+#include <type_traits>
+#ifdef alpaka_ACC_GPU_CUDA_ENABLE
+#  include <cuda_runtime.h>
+#endif  //  alpaka_ACC_GPU_CUDA_ENABLE
 #include <cstdlib>
-#include <memory>
 #include <tuple>
 #include <vector>
 
 using nlohmann::json;
 using namespace membenchmc;
+
+using Dim = alpaka::DimInt<1>;
+using Idx = std::uint32_t;
+using Acc = alpaka::TagToAcc<std::remove_cvref_t<decltype(std::get<0>(alpaka::EnabledAccTags{}))>,
+                             Dim, Idx>;
 
 namespace membenchmc::Actions {
   static constexpr int MALLOC = 1;
@@ -16,9 +27,6 @@ namespace membenchmc::Actions {
 
 namespace setups {
   auto makeExecutionDetails() {
-    using Dim = alpaka::DimInt<1>;
-    using Idx = std::uint32_t;
-    using Acc = alpaka::AccCpuSerial<Dim, Idx>;
     auto const platformAcc = alpaka::Platform<Acc>{};
     auto const dev = alpaka::getDevByIdx(platformAcc, 0);
     auto workdiv = alpaka::WorkDivMembers<Dim, Idx>{
@@ -58,23 +66,56 @@ namespace setups {
     auto generateReport() { return recipe.generateReport(); }
   };
 
-  struct SimpleSumLogger {
-    std::chrono::nanoseconds mallocDuration;
+  template <typename TAccTag> struct DeviceClock;
+
+  template <> struct DeviceClock<alpaka::TagCpuSerial> {
+    using DurationType = float;
+    ALPAKA_FN_INLINE ALPAKA_FN_ACC static auto clock() {
+      return std::chrono::high_resolution_clock::now();
+    }
+
+    ALPAKA_FN_INLINE ALPAKA_FN_ACC static auto duration(auto start, auto end) {
+      // returning milliseconds
+      return static_cast<float>(
+                 std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count())
+             / 1000000;
+    }
+  };
+
+#ifdef ALPAKA_ACC_GPU_CUDA_ENABLED
+
+  template <> struct DeviceClock<alpaka::TagGpuCudaRt> {
+    using DurationType = float;
+    ALPAKA_FN_INLINE __device__ static auto clock() { return clock64(); }
+
+    ALPAKA_FN_INLINE ALPAKA_FN_ACC static auto duration(auto start, auto end) {
+      return start <= end ? end - start
+                          : std::numeric_limits<decltype(clock64())>::max() - start + end;
+    }
+  };
+
+#endif
+
+  template <typename TAccTag> struct SimpleSumLogger {
+    DeviceClock<TAccTag>::DurationType mallocDuration;
     std::uint32_t mallocCounter{0U};
-    std::chrono::nanoseconds freeDuration;
+    DeviceClock<TAccTag>::DurationType freeDuration;
     std::uint32_t freeCounter{0U};
 
-    ALPAKA_FN_INLINE ALPAKA_FN_ACC auto call(auto func) {
-      auto start = std::chrono::high_resolution_clock::now();
+    template <typename T> struct tmp : std::false_type {};
+
+    ALPAKA_FN_INLINE ALPAKA_FN_ACC auto call(auto const& acc, auto func) {
+      using Clock = DeviceClock<alpaka::AccToTag<std::remove_cvref_t<decltype(acc)>>>;
+      auto start = Clock::clock();
       auto result = func();
-      auto end = std::chrono::high_resolution_clock::now();
+      auto end = Clock::clock();
 
       if (std::get<0>(result) == Actions::MALLOC) {
-        mallocDuration += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
+        mallocDuration += Clock::duration(start, end);
         mallocCounter++;
       }
       if (std::get<0>(result) == Actions::FREE) {
-        freeDuration += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
+        freeDuration += Clock::duration(start, end);
         freeCounter++;
       }
 
@@ -83,13 +124,12 @@ namespace setups {
 
     nlohmann::json generateReport() {
       return {
-          {"allocation total time [ns]", mallocDuration.count()},
-          {"allocation average time [ns]",
-           mallocDuration.count() / (mallocCounter > 0 ? mallocCounter : 1U)},
+          {"allocation total time [ms]", mallocDuration},
+          {"allocation average time [ms]",
+           mallocDuration / (mallocCounter > 0 ? mallocCounter : 1U)},
           {"allocation count", mallocCounter},
-          {"deallocation total time [ns]", freeDuration.count()},
-          {"deallocation average time [ns]",
-           freeDuration.count() / (freeCounter > 0 ? freeCounter : 1U)},
+          {"deallocation total time [ms]", freeDuration},
+          {"deallocation average time [ms]", freeDuration / (freeCounter > 0 ? freeCounter : 1U)},
           {"deallocation count ", freeCounter},
       };
     }
@@ -139,7 +179,7 @@ namespace setups {
               std::span<std::byte>{static_cast<std::byte*>(nullptr), allocationSize});
         pointers[counter] = static_cast<std::byte*>(malloc(allocationSize));
         auto result
-            = std::make_tuple(Actions::MALLOC, std::span(pointers[counter], allocationSize));
+            = std::make_tuple(+Actions::MALLOC, std::span(pointers[counter], allocationSize));
         counter++;
         return result;
       }
@@ -147,7 +187,7 @@ namespace setups {
 
     auto makeInstructionDetails() {
       auto recipes = Aggregate<SingleSizeMallocRecipe>{};
-      auto loggers = Aggregate<SimpleSumLogger>{};
+      auto loggers = Aggregate<SimpleSumLogger<alpaka::AccToTag<Acc>>>{};
       auto checkers = Aggregate<NoChecker>{};
       return InstructionDetails<decltype(recipes), decltype(loggers), decltype(checkers)>{
           std::move(recipes), loggers, checkers};
@@ -175,12 +215,12 @@ namespace setups {
         if (currentPointer == nullptr) {
           currentPointer = malloc(sizes[currentIndex]);
           return std::make_tuple(
-              Actions::MALLOC,
+              +Actions::MALLOC,
               std::span<std::byte>{static_cast<std::byte*>(currentPointer), sizes[currentIndex]});
         } else {
           free(currentPointer);
           auto result = std::make_tuple(
-              Actions::FREE,
+              +Actions::FREE,
               std::span<std::byte>{static_cast<std::byte*>(currentPointer), sizes[currentIndex]});
           currentPointer = nullptr;
           currentIndex++;
@@ -193,7 +233,7 @@ namespace setups {
         = {16U, 256U, 1024U, 16U, 16U, 256U, 16U, 1024U, 1024U};
     auto makeInstructionDetails() {
       auto recipes = Aggregate<MallocFreeRecipe>{{ALLOCATION_SIZES}};
-      auto loggers = Aggregate<SimpleSumLogger>{};
+      auto loggers = Aggregate<SimpleSumLogger<alpaka::AccToTag<Acc>>>{};
       auto checkers = Aggregate<NoChecker>{};
       return InstructionDetails<decltype(recipes), decltype(loggers), decltype(checkers)>{
           std::move(recipes), loggers, checkers};
