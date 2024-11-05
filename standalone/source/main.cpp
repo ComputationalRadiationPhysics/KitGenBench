@@ -1,3 +1,4 @@
+#include <membenchmc/DeviceClock.h>
 #include <membenchmc/membenchmc.h>
 #include <membenchmc/setup.h>
 #include <membenchmc/version.h>
@@ -5,20 +6,16 @@
 #include <alpaka/acc/AccCpuSerial.hpp>
 #include <alpaka/acc/Tag.hpp>
 #include <alpaka/core/Common.hpp>
-#include <type_traits>
-#ifdef alpaka_ACC_GPU_CUDA_ENABLE
-#  include <cuda_runtime.h>
-#endif  //  alpaka_ACC_GPU_CUDA_ENABLE
 #include <cstdlib>
-#include <tuple>
+#include <type_traits>
 #include <vector>
 
 using nlohmann::json;
 using namespace membenchmc;
 
 namespace membenchmc::Actions {
-  static constexpr int MALLOC = 1;
-  static constexpr int FREE = 2;
+  [[maybe_unused]] static constexpr int MALLOC = 1;
+  [[maybe_unused]] static constexpr int FREE = 2;
 }  // namespace membenchmc::Actions
 
 using Dim = alpaka::DimInt<1>;
@@ -148,67 +145,6 @@ namespace setups {
     }
   };
 
-  namespace mallocFreeManySize {
-
-    struct MallocFreeRecipe {
-      std::vector<std::uint32_t> sizes{};
-      std::uint32_t currentIndex{0U};
-      void* currentPointer{nullptr};
-
-      ALPAKA_FN_ACC auto next([[maybe_unused]] const auto& acc) {
-        if (currentIndex >= sizes.size())
-          return std::make_tuple(Actions::STOP,
-                                 std::span<std::byte>{static_cast<std::byte*>(nullptr), 0U});
-
-        if (currentPointer == nullptr) {
-          currentPointer = malloc(sizes[currentIndex]);
-          return std::make_tuple(
-              +Actions::MALLOC,
-              std::span<std::byte>{static_cast<std::byte*>(currentPointer), sizes[currentIndex]});
-        } else {
-          free(currentPointer);
-          auto result = std::make_tuple(
-              +Actions::FREE,
-              std::span<std::byte>{static_cast<std::byte*>(currentPointer), sizes[currentIndex]});
-          currentPointer = nullptr;
-          currentIndex++;
-          return result;
-        }
-      }
-
-      nlohmann::json generateReport() { return {}; }
-    };
-
-    std::vector<std::uint32_t> ALLOCATION_SIZES
-        = {16U, 256U, 1024U, 16U, 16U, 256U, 16U, 1024U, 1024U};
-    auto makeInstructionDetails() {
-      auto recipes = Aggregate<MallocFreeRecipe>{{ALLOCATION_SIZES}};
-      auto loggers = Aggregate<SimpleSumLogger<alpaka::AccToTag<Acc>>>{};
-      auto checkers = Aggregate<setup::NoChecker>{};
-      return InstructionDetails<decltype(recipes), decltype(loggers), decltype(checkers)>{
-          std::move(recipes), loggers, checkers};
-    }
-
-    namespace detail {
-      template <typename T> T unique(T const& values) {
-        // It's a pity but the following are algorithms and not "adaptors", so the pipe operator
-        // doesn't work.
-        T tmp = values;
-        std::ranges::sort(tmp);
-        const auto [new_end, old_end] = std::ranges::unique(tmp);
-        return {std::begin(tmp), new_end};
-      }
-    }  // namespace detail
-
-    auto composeSetup() {
-      return composeSetup(
-          "mallocFreeManySize", makeExecutionDetails(), makeInstructionDetails(),
-          {{"number of allocations", ALLOCATION_SIZES.size()},
-           {"available allocation sizes [bytes]", detail::unique(ALLOCATION_SIZES)}});
-    }
-
-  }  // namespace mallocFreeManySize
-
 }  // namespace setups
 
 /**
@@ -235,9 +171,9 @@ void output(json const& report) { std::cout << report << std::endl; }
 
 auto main() -> int {
   auto metadata = gatherMetadata();
-  auto mallocFreeManySizeSetup = setups::mallocFreeManySize::composeSetup();
-  auto benchmarkReports = runBenchmarks(mallocFreeManySizeSetup);
-  auto report = composeReport(metadata, benchmarkReports);
-  output(report);
+  // auto setup = setups::mallocFreeManySize::composeSetup();
+  // auto benchmarkReports = runBenchmarks(setup);
+  // auto report = composeReport(metadata, benchmarkReports);
+  // output(report);
   return EXIT_SUCCESS;
 }

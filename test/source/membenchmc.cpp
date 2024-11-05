@@ -110,3 +110,60 @@ TEST_CASE("Single size malloc") {
   auto setup = setups::singleSizeMalloc::composeSetup();
   auto benchmarkReports = runBenchmarks(setup);
 }
+
+namespace setups::mallocFreeManySize {
+
+  struct MallocFreeRecipe {
+    std::vector<std::uint32_t> sizes{};
+    std::uint32_t currentIndex{0U};
+    void* currentPointer{nullptr};
+
+    ALPAKA_FN_ACC auto next([[maybe_unused]] const auto& acc) {
+      if (currentIndex >= sizes.size())
+        return std::make_tuple(membenchmc::Actions::STOP,
+                               std::span<std::byte>{static_cast<std::byte*>(nullptr), 0U});
+
+      if (currentPointer == nullptr) {
+        currentPointer = malloc(sizes[currentIndex]);
+        return std::make_tuple(
+            +membenchmc::Actions::MALLOC,
+            std::span<std::byte>{static_cast<std::byte*>(currentPointer), sizes[currentIndex]});
+      } else {
+        free(currentPointer);
+        auto result = std::make_tuple(
+            +membenchmc::Actions::FREE,
+            std::span<std::byte>{static_cast<std::byte*>(currentPointer), sizes[currentIndex]});
+        currentPointer = nullptr;
+        currentIndex++;
+        return result;
+      }
+    }
+
+    nlohmann::json generateReport() { return {}; }
+  };
+
+  std::vector<std::uint32_t> ALLOCATION_SIZES
+      = {16U, 256U, 1024U, 16U, 16U, 256U, 16U, 1024U, 1024U};
+  auto makeInstructionDetails() { return InstructionDetails<MallocFreeRecipe>{}; }
+
+  namespace detail {
+    template <typename T> T unique(T const& values) {
+      // It's a pity but the following are algorithms and not "adaptors", so the pipe operator
+      // doesn't work.
+      T tmp = values;
+      std::ranges::sort(tmp);
+      const auto [new_end, old_end] = std::ranges::unique(tmp);
+      return {std::begin(tmp), new_end};
+    }
+  }  // namespace detail
+
+  auto composeSetup() {
+    return composeSetup("mallocFreeManySize", makeExecutionDetails(), makeInstructionDetails(),
+                        {{"what it does",
+                          "This setup runs through a given vector of allocation sizes, allocating "
+                          "and deallocating each size one after another."},
+                         {"number of allocations", ALLOCATION_SIZES.size()},
+                         {"available allocation sizes [bytes]", detail::unique(ALLOCATION_SIZES)}});
+  }
+
+}  // namespace setups::mallocFreeManySize

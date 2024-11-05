@@ -2,6 +2,7 @@
 #pragma once
 #include <alpaka/core/Common.hpp>
 #include <string>
+#include <tuple>
 
 #include "nlohmann/json.hpp"
 
