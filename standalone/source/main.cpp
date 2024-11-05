@@ -148,45 +148,6 @@ namespace setups {
     }
   };
 
-  namespace singleSizeMalloc {
-
-    struct SingleSizeMallocRecipe {
-      static constexpr std::uint32_t allocationSize{16U};
-      static constexpr std::uint32_t numAllocations{100U};
-      std::array<std::byte*, numAllocations> pointers{{}};
-      std::uint32_t counter{0U};
-
-      ALPAKA_FN_ACC auto next([[maybe_unused]] const auto& acc) {
-        if (counter >= numAllocations)
-          return std::make_tuple(
-              Actions::STOP,
-              std::span<std::byte>{static_cast<std::byte*>(nullptr), allocationSize});
-        pointers[counter] = static_cast<std::byte*>(malloc(allocationSize));
-        auto result
-            = std::make_tuple(+Actions::MALLOC, std::span(pointers[counter], allocationSize));
-        counter++;
-        return result;
-      }
-
-      nlohmann::json generateReport() { return {}; }
-    };
-
-    auto makeInstructionDetails() {
-      auto recipes = Aggregate<SingleSizeMallocRecipe>{};
-      auto loggers = Aggregate<SimpleSumLogger<alpaka::AccToTag<Acc>>>{};
-      auto checkers = Aggregate<setup::NoChecker>{};
-      return InstructionDetails<decltype(recipes), decltype(loggers), decltype(checkers)>{
-          std::move(recipes), loggers, checkers};
-    }
-
-    auto composeSetup() {
-      return composeSetup("singleSizeMalloc", makeExecutionDetails(), makeInstructionDetails(),
-                          {{"allocation size [bytes]", SingleSizeMallocRecipe::allocationSize},
-                           {"number of allocations", SingleSizeMallocRecipe::numAllocations}});
-    }
-
-  }  // namespace singleSizeMalloc
-
   namespace mallocFreeManySize {
 
     struct MallocFreeRecipe {
@@ -274,9 +235,8 @@ void output(json const& report) { std::cout << report << std::endl; }
 
 auto main() -> int {
   auto metadata = gatherMetadata();
-  auto singleSizeMallocSetup = setups::singleSizeMalloc::composeSetup();
   auto mallocFreeManySizeSetup = setups::mallocFreeManySize::composeSetup();
-  auto benchmarkReports = runBenchmarks(singleSizeMallocSetup, mallocFreeManySizeSetup);
+  auto benchmarkReports = runBenchmarks(mallocFreeManySizeSetup);
   auto report = composeReport(metadata, benchmarkReports);
   output(report);
   return EXIT_SUCCESS;
