@@ -6,6 +6,8 @@
 #include <alpaka/workdiv/WorkDivMembers.hpp>
 #include <cstdint>
 #include <limits>
+#include <tuple>
+#include <utility>
 #ifdef alpaka_ACC_GPU_CUDA_ENABLED
 #  include <cuda_runtime.h>
 #endif  //  alpaka_ACC_GPU_CUDA_ENABLE
@@ -48,12 +50,25 @@ auto makeExecutionDetails() {
   return membenchmc::ExecutionDetails<Acc, decltype(dev)>{workdiv, dev};
 }
 
+static constexpr std::uint32_t ALLOCATION_SIZE = 16U;
+
+// Reasons for the check to yield the result it yielded.
+// `completed` means that the check completed. The result can still be true/false depending on
+// whether the obtained value was actually correct. `notApplicable` means that the checks were
+// skipped. `nullpointer` means that a nullpointer was given, so the checks couldn't run at all.
+enum class Reason { completed, notApplicable, nullpointer };
+using Payload = std::variant<std::span<std::byte, ALLOCATION_SIZE>, std::pair<bool, Reason>>;
+
 template <typename TAccTag> struct SimpleSumLogger {
   using Clock = DeviceClock<TAccTag>;
+
   DeviceClock<TAccTag>::DurationType mallocDuration;
   std::uint32_t mallocCounter{0U};
+
   DeviceClock<TAccTag>::DurationType freeDuration;
   std::uint32_t freeCounter{0U};
+
+  std::uint32_t nullpointersObtained{0U};
   std::uint32_t failedChecksCounter{0U};
 
   template <typename TAcc> ALPAKA_FN_INLINE ALPAKA_FN_ACC auto call(TAcc const& acc, auto func) {
@@ -72,7 +87,15 @@ template <typename TAccTag> struct SimpleSumLogger {
       freeCounter++;
     }
     if (std::get<0>(result) == Actions::CHECK) {
-      failedChecksCounter += std::get<bool>(std::get<1>(result)) ? 0 : 1;
+      auto [passed, reason] = std::get<1>(std::get<1>(result));
+      if (not passed) {
+        if (reason == Reason::nullpointer) {
+          nullpointersObtained++;
+        }
+        if (reason == Reason::completed) {
+          failedChecksCounter++;
+        }
+      }
     }
 
     return result;
@@ -83,6 +106,7 @@ template <typename TAccTag> struct SimpleSumLogger {
     alpaka::atomicAdd(acc, &mallocCounter, other.mallocCounter);
     alpaka::atomicAdd(acc, &freeDuration, other.freeDuration);
     alpaka::atomicAdd(acc, &freeCounter, other.freeCounter);
+    alpaka::atomicAdd(acc, &nullpointersObtained, other.nullpointersObtained);
     alpaka::atomicAdd(acc, &failedChecksCounter, other.failedChecksCounter);
   }
 
@@ -107,6 +131,7 @@ template <typename TAccTag> struct SimpleSumLogger {
          freeDuration / clockRate / (freeCounter > 0 ? freeCounter : 1U)},
         {"deallocation count ", freeCounter},
         {"failed checks count", failedChecksCounter},
+        {"nullpointers count", nullpointersObtained},
     };
   }
 };
@@ -126,18 +151,17 @@ constexpr auto convertDataType(std::span<TOld, TExtent>& range) {
       reinterpret_cast<TNew*>(range.data()), range.size());
 }
 
-static constexpr std::uint32_t ALLOCATION_SIZE = 16U;
-
-using Payload = std::variant<std::span<std::byte, ALLOCATION_SIZE>, bool>;
-
 struct IotaReductionChecker {
   uint32_t currentValue{};
 
   ALPAKA_FN_ACC auto check([[maybe_unused]] const auto& acc, const auto& result) {
     if (std::get<0>(result) != Actions::MALLOC) {
-      return std::make_tuple(Actions::CHECK, Payload(true));
+      return std::make_tuple(Actions::CHECK, Payload(std::make_pair(true, Reason::notApplicable)));
     }
     auto range = std::get<0>(std::get<1>(result));
+    if (range.data() == nullptr) {
+      return std::make_tuple(Actions::CHECK, Payload(std::make_pair(false, Reason::nullpointer)));
+    }
     static_assert(decltype(isSpan(range))::value,
                   "We expected a span pointing to the allocated memory here.");
     auto uintRange = convertDataType<uint32_t>(range);
@@ -147,7 +171,8 @@ struct IotaReductionChecker {
     // into an overflow that the reduction encounters, too.
     auto expected = static_cast<uint32_t>(n * currentValue + n * (n - 1) / 2) ^ currentValue;
     currentValue ^= std::reduce(std::cbegin(uintRange), std::cend(uintRange));
-    return std::make_tuple(+Actions::CHECK, Payload(expected == currentValue));
+    return std::make_tuple(+Actions::CHECK,
+                           Payload(std::make_pair(expected == currentValue, Reason::completed)));
   }
 
   ALPAKA_FN_ACC auto accumulate(const auto& acc, const auto& other) {
