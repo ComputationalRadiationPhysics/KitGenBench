@@ -41,11 +41,14 @@ namespace membenchmc::Actions {
 auto makeExecutionDetails() {
   auto const platformAcc = alpaka::Platform<Acc>{};
   auto const dev = alpaka::getDevByIdx(platformAcc, 0);
-  auto workdiv = []() -> alpaka::WorkDivMembers<Dim, Idx> {
+  uint32_t const numThreadsPerBlock = 256U;
+  uint32_t const numThreads = 8U * numThreadsPerBlock;
+  auto workdiv = [numThreads, numThreadsPerBlock]() -> alpaka::WorkDivMembers<Dim, Idx> {
     if constexpr (std::is_same_v<alpaka::AccToTag<Acc>, alpaka::TagCpuSerial>) {
-      return {{1U}, {1U}, {1U}};
+      return {{1U}, {1U}, {numThreads}};
     } else {
-      return alpaka::WorkDivMembers<Dim, Idx>{{1024 / 256}, {256U}, {1U}};
+      return alpaka::WorkDivMembers<Dim, Idx>{
+          {numThreads / numThreadsPerBlock}, {numThreadsPerBlock}, {1U}};
     }
   }();
   return membenchmc::ExecutionDetails<Acc, decltype(dev)>{workdiv, dev};
@@ -219,7 +222,7 @@ template <typename T> struct AcumulateChecksProvider {
 namespace setups {
   struct SingleSizeMallocRecipe {
     static constexpr std::uint32_t allocationSize{ALLOCATION_SIZE};
-    static constexpr std::uint32_t numAllocations{256U};
+    static constexpr std::uint32_t numAllocations{16U};
     std::array<std::byte*, numAllocations> pointers{{}};
     std::uint32_t counter{0U};
 

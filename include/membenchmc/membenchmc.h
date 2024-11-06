@@ -1,9 +1,13 @@
 #pragma once
 #include <membenchmc/setup.h>
 
+#include <alpaka/acc/Traits.hpp>
 #include <alpaka/alpaka.hpp>
+#include <alpaka/dev/Traits.hpp>
 #include <chrono>
 #include <nlohmann/json.hpp>
+#include <ranges>
+#include <sstream>
 
 #include "alpaka/queue/Properties.hpp"
 
@@ -35,9 +39,19 @@ namespace membenchmc {
     ALPAKA_FN_ACC auto operator()(TAcc const& acc, auto* instructions) const -> void {
       auto const globalThreadIdx = alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc);
       auto const globalThreadExtent = alpaka::getWorkDiv<alpaka::Grid, alpaka::Threads>(acc);
-      auto const linearizedGlobalThreadIdx
-          = alpaka::mapIdx<1u>(globalThreadIdx, globalThreadExtent).x();
+      auto const elementsPerThread = alpaka::getWorkDiv<alpaka::Thread, alpaka::Elems>(acc);
 
+      // This outmost loop ensures that a serial run with element layer set to the number of threads
+      // does the same thing as a parallel run.
+      for (auto const i : std::ranges::iota_view(0U, elementsPerThread.x())) {
+        auto const linearizedGlobalThreadIdx
+            = alpaka::mapIdx<1u>(globalThreadIdx, globalThreadExtent).x() + i;
+        taskForOneThread(acc, linearizedGlobalThreadIdx, instructions);
+      }
+    }
+
+    ALPAKA_FN_ACC void taskForOneThread(auto const& acc, auto const linearizedGlobalThreadIdx,
+                                        auto* instructions) const {
       // Get a local copy, so we work on registers and don't strain global memory too much.
       auto myRecipe = instructions->recipes.load(linearizedGlobalThreadIdx);
       auto myLogger = instructions->loggers.load(linearizedGlobalThreadIdx);
@@ -82,7 +96,11 @@ namespace membenchmc {
 
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-    nlohmann::json result = {{"total runtime [ms]", duration}, {"description", setup.description}};
+    nlohmann::json result = {{"total runtime [ms]", duration},
+                             {"description", setup.description},
+                             {"accelerator", alpaka::getAccName<Acc>()},
+                             {"device", alpaka::getName(setup.execution.device)},
+                             {"workdiv", (std::ostringstream{} << setup.execution.workdiv).str()}};
     result.merge_patch(setup.instructions.generateReport());
     return result;
   };
