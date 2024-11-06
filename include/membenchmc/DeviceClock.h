@@ -4,9 +4,9 @@
 #include <alpaka/core/Common.hpp>
 #include <chrono>
 
-#ifdef alpaka_ACC_GPU_CUDA_ENABLED
+#ifdef ALPAKA_ACC_GPU_CUDA_ENABLED
 #  include <cuda_runtime.h>
-#endif  //  alpaka_ACC_GPU_CUDA_ENABLE
+#endif
 
 namespace membenchmc {
   template <typename TAccTag> struct DeviceClock;
