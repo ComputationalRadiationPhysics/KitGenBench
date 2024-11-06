@@ -8,6 +8,7 @@
 #include <limits>
 #include <tuple>
 #include <utility>
+#include <variant>
 #ifdef alpaka_ACC_GPU_CUDA_ENABLED
 #  include <cuda_runtime.h>
 #endif  //  alpaka_ACC_GPU_CUDA_ENABLE
@@ -70,6 +71,7 @@ template <typename TAccTag> struct SimpleSumLogger {
 
   std::uint32_t nullpointersObtained{0U};
   std::uint32_t failedChecksCounter{0U};
+  std::uint32_t invalidCheckResults{0U};
 
   template <typename TAcc> ALPAKA_FN_INLINE ALPAKA_FN_ACC auto call(TAcc const& acc, auto func) {
     static_assert(
@@ -82,19 +84,25 @@ template <typename TAccTag> struct SimpleSumLogger {
       mallocDuration += Clock::duration(start, end);
       mallocCounter++;
     }
+
     if (std::get<0>(result) == Actions::FREE) {
       freeDuration += Clock::duration(start, end);
       freeCounter++;
     }
+
     if (std::get<0>(result) == Actions::CHECK) {
-      auto [passed, reason] = std::get<1>(std::get<1>(result));
-      if (not passed) {
-        if (reason == Reason::nullpointer) {
-          nullpointersObtained++;
+      if (std::holds_alternative<std::pair<bool, Reason>>(std::get<1>(result))) {
+        auto [passed, reason] = std::get<std::pair<bool, Reason>>(std::get<1>(result));
+        if (not passed) {
+          if (reason == Reason::nullpointer) {
+            nullpointersObtained++;
+          }
+          if (reason == Reason::completed) {
+            failedChecksCounter++;
+          }
         }
-        if (reason == Reason::completed) {
-          failedChecksCounter++;
-        }
+      } else {
+        invalidCheckResults++;
       }
     }
 
@@ -108,6 +116,7 @@ template <typename TAccTag> struct SimpleSumLogger {
     alpaka::atomicAdd(acc, &freeCounter, other.freeCounter);
     alpaka::atomicAdd(acc, &nullpointersObtained, other.nullpointersObtained);
     alpaka::atomicAdd(acc, &failedChecksCounter, other.failedChecksCounter);
+    alpaka::atomicAdd(acc, &invalidCheckResults, other.invalidCheckResults);
   }
 
   nlohmann::json generateReport() {
@@ -132,6 +141,7 @@ template <typename TAccTag> struct SimpleSumLogger {
         {"deallocation count ", freeCounter},
         {"failed checks count", failedChecksCounter},
         {"nullpointers count", nullpointersObtained},
+        {"invalid check results count", invalidCheckResults},
     };
   }
 };
