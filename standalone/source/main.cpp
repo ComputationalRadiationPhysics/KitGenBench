@@ -47,15 +47,15 @@ auto makeExecutionDetails() {
 }
 
 template <typename TAccTag> struct SimpleSumLogger {
+  using Clock = DeviceClock<TAccTag>;
   DeviceClock<TAccTag>::DurationType mallocDuration;
   std::uint32_t mallocCounter{0U};
   DeviceClock<TAccTag>::DurationType freeDuration;
   std::uint32_t freeCounter{0U};
 
-  template <typename T> struct tmp : std::false_type {};
-
-  ALPAKA_FN_INLINE ALPAKA_FN_ACC auto call(auto const& acc, auto func) {
-    using Clock = DeviceClock<alpaka::AccToTag<std::remove_cvref_t<decltype(acc)>>>;
+  template <typename TAcc> ALPAKA_FN_INLINE ALPAKA_FN_ACC auto call(TAcc const& acc, auto func) {
+    static_assert(
+        std::is_same_v<alpaka::TagToAcc<TAccTag, alpaka::Dim<Acc>, alpaka::Idx<Acc>>, TAcc>);
     auto start = Clock::clock();
     auto result = func(acc);
     auto end = Clock::clock();
