@@ -4,6 +4,8 @@
 #include <membenchmc/version.h>
 
 #include <alpaka/workdiv/WorkDivMembers.hpp>
+#include <cstdint>
+#include <limits>
 #ifdef alpaka_ACC_GPU_CUDA_ENABLED
 #  include <cuda_runtime.h>
 #endif  //  alpaka_ACC_GPU_CUDA_ENABLE
@@ -52,6 +54,7 @@ template <typename TAccTag> struct SimpleSumLogger {
   std::uint32_t mallocCounter{0U};
   DeviceClock<TAccTag>::DurationType freeDuration;
   std::uint32_t freeCounter{0U};
+  std::uint32_t failedChecksCounter{0U};
 
   template <typename TAcc> ALPAKA_FN_INLINE ALPAKA_FN_ACC auto call(TAcc const& acc, auto func) {
     static_assert(
@@ -68,6 +71,9 @@ template <typename TAccTag> struct SimpleSumLogger {
       freeDuration += Clock::duration(start, end);
       freeCounter++;
     }
+    if (std::get<0>(result) == Actions::CHECK) {
+      failedChecksCounter += std::get<bool>(std::get<1>(result)) ? 0 : 1;
+    }
 
     return result;
   }
@@ -77,6 +83,7 @@ template <typename TAccTag> struct SimpleSumLogger {
     alpaka::atomicAdd(acc, &mallocCounter, other.mallocCounter);
     alpaka::atomicAdd(acc, &freeDuration, other.freeDuration);
     alpaka::atomicAdd(acc, &freeCounter, other.freeCounter);
+    alpaka::atomicAdd(acc, &failedChecksCounter, other.failedChecksCounter);
   }
 
   nlohmann::json generateReport() {
@@ -99,8 +106,55 @@ template <typename TAccTag> struct SimpleSumLogger {
         {"deallocation average time [ms]",
          freeDuration / clockRate / (freeCounter > 0 ? freeCounter : 1U)},
         {"deallocation count ", freeCounter},
+        {"failed checks count", failedChecksCounter},
     };
   }
+};
+
+template <template <typename, size_t> typename T, typename TType, size_t TExtent> struct IsSpan {
+  static constexpr bool value = std::is_same_v<T<TType, TExtent>, std::span<TType, TExtent>>;
+};
+
+template <template <typename, size_t> typename T, typename TType, size_t TExtent>
+constexpr auto isSpan(T<TType, TExtent>) {
+  return IsSpan<T, TType, TExtent>{};
+}
+
+template <typename TNew, typename TOld, std::size_t TExtent>
+constexpr auto convertDataType(std::span<TOld, TExtent>& range) {
+  return std::span<TNew, TExtent * sizeof(TOld) / sizeof(TNew)>(
+      reinterpret_cast<TNew*>(range.data()), range.size());
+}
+
+static constexpr std::uint32_t ALLOCATION_SIZE = 16U;
+
+using Payload = std::variant<std::span<std::byte, ALLOCATION_SIZE>, bool>;
+
+struct IotaReductionChecker {
+  uint32_t currentValue{};
+
+  ALPAKA_FN_ACC auto check([[maybe_unused]] const auto& acc, const auto& result) {
+    if (std::get<0>(result) != Actions::MALLOC) {
+      return std::make_tuple(Actions::CHECK, Payload(true));
+    }
+    auto range = std::get<0>(std::get<1>(result));
+    static_assert(decltype(isSpan(range))::value,
+                  "We expected a span pointing to the allocated memory here.");
+    auto uintRange = convertDataType<uint32_t>(range);
+    std::iota(std::begin(uintRange), std::end(uintRange), currentValue);
+    size_t n = uintRange.size();
+    // The exact formula is using size_t because n is size_t. Casting it down will oftentimes run
+    // into an overflow that the reduction encounters, too.
+    auto expected = static_cast<uint32_t>(n * currentValue + n * (n - 1) / 2) ^ currentValue;
+    currentValue ^= std::reduce(std::cbegin(uintRange), std::cend(uintRange));
+    return std::make_tuple(+Actions::CHECK, Payload(expected == currentValue));
+  }
+
+  ALPAKA_FN_ACC auto accumulate(const auto& acc, const auto& other) {
+    alpaka::atomicXor(acc, &currentValue, other.currentValue);
+  }
+
+  nlohmann::json generateReport() { return {{"final value", currentValue}}; }
 };
 
 template <typename T> struct NoStoreProvider {
@@ -118,21 +172,31 @@ template <typename T> struct AccumulateResultsProvider {
   nlohmann::json generateReport() { return result.generateReport(); }
 };
 
+template <typename T> struct AcumulateChecksProvider {
+  T result{};
+  ALPAKA_FN_ACC T load(auto const threadIndex) { return {threadIndex}; }
+  ALPAKA_FN_ACC void store(const auto& acc, T&& instance, auto const) {
+    result.accumulate(acc, instance);
+  }
+  nlohmann::json generateReport() { return result.generateReport(); }
+};
+
 namespace setups {
   struct SingleSizeMallocRecipe {
-    static constexpr std::uint32_t allocationSize{16U};
+    static constexpr std::uint32_t allocationSize{ALLOCATION_SIZE};
     static constexpr std::uint32_t numAllocations{256U};
     std::array<std::byte*, numAllocations> pointers{{}};
     std::uint32_t counter{0U};
 
     ALPAKA_FN_ACC auto next([[maybe_unused]] const auto& acc) {
       if (counter >= numAllocations)
-        return std::make_tuple(
-            membenchmc::Actions::STOP,
-            std::span<std::byte>{static_cast<std::byte*>(nullptr), allocationSize});
+        return std::make_tuple(+membenchmc::Actions::STOP,
+                               Payload(std::span<std::byte, allocationSize>{
+                                   static_cast<std::byte*>(nullptr), allocationSize}));
       pointers[counter] = static_cast<std::byte*>(malloc(allocationSize));
-      auto result = std::make_tuple(+membenchmc::Actions::MALLOC,
-                                    std::span(pointers[counter], allocationSize));
+      auto result = std::make_tuple(
+          +membenchmc::Actions::MALLOC,
+          Payload(std::span<std::byte, allocationSize>(pointers[counter], allocationSize)));
       counter++;
       return result;
     }
@@ -144,7 +208,7 @@ namespace setups {
     struct DevicePackage {
       NoStoreProvider<SingleSizeMallocRecipe> recipes{};
       AccumulateResultsProvider<SimpleSumLogger<AccTag>> loggers{};
-      NoStoreProvider<setup::NoChecker> checkers{};
+      AcumulateChecksProvider<IotaReductionChecker> checkers{};
     };
 
     DevicePackage hostData{};
