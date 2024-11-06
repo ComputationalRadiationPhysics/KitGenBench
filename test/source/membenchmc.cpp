@@ -175,3 +175,8 @@ namespace setups::mallocFreeManySize {
   }
 
 }  // namespace setups::mallocFreeManySize
+
+TEST_CASE("Malloc free many size") {
+  auto setup = setups::mallocFreeManySize::composeSetup();
+  auto benchmarkReports = runBenchmarks(setup);
+}
