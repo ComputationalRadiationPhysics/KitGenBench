@@ -9,7 +9,7 @@
 #include <tuple>
 #include <utility>
 #include <variant>
-#ifdef alpaka_ACC_GPU_CUDA_ENABLED
+#ifdef ALPAKA_ACC_GPU_CUDA_ENABLED
 #  include <cuda_runtime.h>
 #endif  //  alpaka_ACC_GPU_CUDA_ENABLE
 
@@ -41,8 +41,11 @@ namespace membenchmc::Actions {
 auto makeExecutionDetails() {
   auto const platformAcc = alpaka::Platform<Acc>{};
   auto const dev = alpaka::getDevByIdx(platformAcc, 0);
+#ifdef ALPAKA_ACC_GPU_CUDA_ENABLED
+  cudaDeviceSetLimit(cudaLimitMallocHeapSize, 1024U * 1024U * 1024U);
+#endif
   uint32_t const numThreadsPerBlock = 256U;
-  uint32_t const numThreads = 8U * numThreadsPerBlock;
+  uint32_t const numThreads = 4U * numThreadsPerBlock;
   auto workdiv = [numThreads, numThreadsPerBlock]() -> alpaka::WorkDivMembers<Dim, Idx> {
     if constexpr (std::is_same_v<alpaka::AccToTag<Acc>, alpaka::TagCpuSerial>) {
       return {{1U}, {1U}, {numThreads}};
@@ -175,8 +178,6 @@ struct IotaReductionChecker {
     if (range.data() == nullptr) {
       return std::make_tuple(Actions::CHECK, Payload(std::make_pair(false, Reason::nullpointer)));
     }
-    static_assert(decltype(isSpan(range))::value,
-                  "We expected a span pointing to the allocated memory here.");
     auto uintRange = convertDataType<uint32_t>(range);
     std::iota(std::begin(uintRange), std::end(uintRange), currentValue);
     size_t n = uintRange.size();
@@ -222,7 +223,7 @@ template <typename T> struct AcumulateChecksProvider {
 namespace setups {
   struct SingleSizeMallocRecipe {
     static constexpr std::uint32_t allocationSize{ALLOCATION_SIZE};
-    static constexpr std::uint32_t numAllocations{16U};
+    static constexpr std::uint32_t numAllocations{256U};
     std::array<std::byte*, numAllocations> pointers{{}};
     std::uint32_t counter{0U};
 
