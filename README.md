@@ -37,27 +37,36 @@ See [examples](./examples) for recipes inspirations and technical details.
 
 ## Installation
 
-### Build and run the standalone target
+### Build and run a target
 
-Use the following command to build and run the executable target.
+The project contains the following separate targets:
+
+- test
+- examples (and all subfolders)
+- documentation
+- all
+
+All of those can be built by the following process:
 
 ```bash
-cmake -S standalone -B build/standalone
-cmake --build build/standalone
-./build/standalone/KitGenBench --help
+cmake -S /path/to/<target> -B /path/to/build/<target> -Dalpaka_ACC_CPU_B_SEQ_T_SEQ_ENABLE:BOOL=ON
+cmake --build /path/to/build/<target> [--target GenerateDocs]
 ```
 
-### Build and run test suite
+wherein `[--target GenerateDocs]` is to be used only for building docs.
+This sets `Dalpaka_ACC_CPU_B_SEQ_T_SEQ_ENABLE` which allows running kernels sequentially on the host CPU.
+See [the alpaka docs](https://alpaka.readthedocs.io/en/stable/advanced/cmake.html) for details including other options.
+
+### Running the tests
 
 Use the following commands from the project's root directory to run the test suite.
 
 ```bash
-cmake -S test -B build/test
-cmake --build build/test
-CTEST_OUTPUT_ON_FAILURE=1 cmake --build build/test --target test
+# build tests as above
+CTEST_OUTPUT_ON_FAILURE=1 cmake --build /path/to/build/test --target test
 
 # or simply call the executable:
-./build/test/KitGenBenchTests
+/path/to/build/test/KitGenBenchTests
 ```
 
 To collect code coverage information, run CMake with the `-DENABLE_TEST_COVERAGE=1` option.
@@ -87,10 +96,8 @@ cmake --build build
 
 # run tests
 ./build/test/KitGenBenchTests
-# format code
-cmake --build build --target fix-format
 # run standalone
-./build/standalone/KitGenBench --help
+./build/examples/*/KitGenBenchExample* --help
 # build docs
 cmake --build build --target GenerateDocs
 ```
