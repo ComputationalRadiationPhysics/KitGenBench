@@ -1,7 +1,7 @@
-#include <membenchmc/DeviceClock.h>
-#include <membenchmc/membenchmc.h>
-#include <membenchmc/setup.h>
-#include <membenchmc/version.h>
+#include <kitgenbench/DeviceClock.h>
+#include <kitgenbench/kitgenbench.h>
+#include <kitgenbench/setup.h>
+#include <kitgenbench/version.h>
 
 #include <alpaka/workdiv/WorkDivMembers.hpp>
 #include <cstdint>
@@ -26,17 +26,17 @@
 #include "nlohmann/json_fwd.hpp"
 
 using nlohmann::json;
-using namespace membenchmc;
+using namespace kitgenbench;
 
 using Dim = alpaka::DimInt<1>;
 using Idx = std::uint32_t;
 using AccTag = std::remove_cvref_t<decltype(std::get<0>(alpaka::EnabledAccTags{}))>;
 using Acc = alpaka::TagToAcc<AccTag, Dim, Idx>;
 
-namespace membenchmc::Actions {
+namespace kitgenbench::Actions {
   [[maybe_unused]] static constexpr int MALLOC = 1;
   [[maybe_unused]] static constexpr int FREE = 2;
-}  // namespace membenchmc::Actions
+}  // namespace kitgenbench::Actions
 
 auto makeExecutionDetails() {
   auto const platformAcc = alpaka::Platform<Acc>{};
@@ -54,7 +54,7 @@ auto makeExecutionDetails() {
           {numThreads / numThreadsPerBlock}, {numThreadsPerBlock}, {1U}};
     }
   }();
-  return membenchmc::ExecutionDetails<Acc, decltype(dev)>{workdiv, dev};
+  return kitgenbench::ExecutionDetails<Acc, decltype(dev)>{workdiv, dev};
 }
 
 static constexpr std::uint32_t ALLOCATION_SIZE = 16U;
@@ -229,12 +229,12 @@ namespace setups {
 
     ALPAKA_FN_ACC auto next([[maybe_unused]] const auto& acc) {
       if (counter >= numAllocations)
-        return std::make_tuple(+membenchmc::Actions::STOP,
+        return std::make_tuple(+kitgenbench::Actions::STOP,
                                Payload(std::span<std::byte, allocationSize>{
                                    static_cast<std::byte*>(nullptr), allocationSize}));
       pointers[counter] = static_cast<std::byte*>(malloc(allocationSize));
       auto result = std::make_tuple(
-          +membenchmc::Actions::MALLOC,
+          +kitgenbench::Actions::MALLOC,
           Payload(std::span<std::byte, allocationSize>(pointers[counter], allocationSize)));
       counter++;
       return result;

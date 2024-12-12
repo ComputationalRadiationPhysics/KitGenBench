@@ -1,4 +1,4 @@
-#include <membenchmc/membenchmc.h>
+#include <kitgenbench/kitgenbench.h>
 #ifdef ALPAKA_ACC_GPU_CUDA_ENABLED
 #  include <cuda_runtime.h>
 #endif
@@ -11,7 +11,7 @@
 #include <sstream>
 #include <string>
 
-namespace membenchmc {
+namespace kitgenbench {
   /**
    * @brief Trims leading and trailing whitespace from a string.
    *
@@ -181,4 +181,4 @@ namespace membenchmc {
     metadata["device info"] = getGPUInfo();
     return metadata;
   }
-}  // namespace membenchmc
+}  // namespace kitgenbench

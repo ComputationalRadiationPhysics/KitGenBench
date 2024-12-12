@@ -1,7 +1,7 @@
 #include <doctest/doctest.h>
-#include <membenchmc/membenchmc.h>
-#include <membenchmc/setup.h>
-#include <membenchmc/version.h>
+#include <kitgenbench/kitgenbench.h>
+#include <kitgenbench/setup.h>
+#include <kitgenbench/version.h>
 #include <sys/types.h>
 
 #include <alpaka/core/Common.hpp>
@@ -9,15 +9,15 @@
 
 #include "nlohmann/json.hpp"
 
-TEST_CASE("MemBenchMC version") {
-  static_assert(std::string_view(MEMBENCHMC_VERSION) == std::string_view("0.1"));
-  CHECK(std::string(MEMBENCHMC_VERSION) == std::string("0.1"));
+TEST_CASE("KitGenBench version") {
+  static_assert(std::string_view(KITGENBENCH_VERSION) == std::string_view("0.1"));
+  CHECK(std::string(KITGENBENCH_VERSION) == std::string("0.1"));
 }
 
-namespace membenchmc::Actions {
+namespace kitgenbench::Actions {
   [[maybe_unused]] static constexpr int MALLOC = 1;
   [[maybe_unused]] static constexpr int FREE = 2;
-}  // namespace membenchmc::Actions
+}  // namespace kitgenbench::Actions
 
 using Dim = alpaka::DimInt<1>;
 using Idx = std::uint32_t;
@@ -31,7 +31,7 @@ namespace setups {
     auto const dev = alpaka::getDevByIdx(platformAcc, 0);
     auto workdiv = alpaka::WorkDivMembers<Dim, Idx>{
         alpaka::Vec<Dim, Idx>{1}, alpaka::Vec<Dim, Idx>{1}, alpaka::Vec<Dim, Idx>{1}};
-    return membenchmc::ExecutionDetails<Acc, decltype(dev)>{workdiv, dev};
+    return kitgenbench::ExecutionDetails<Acc, decltype(dev)>{workdiv, dev};
   }
 
   template <typename T> struct Aggregate {
@@ -40,13 +40,13 @@ namespace setups {
     nlohmann::json generateReport() { return {}; }
   };
 
-  template <typename TRecipe = membenchmc::setup::NoRecipe,
-            typename TLogger = membenchmc::setup::NoLogger,
-            typename TChecker = membenchmc::setup::NoChecker>
+  template <typename TRecipe = kitgenbench::setup::NoRecipe,
+            typename TLogger = kitgenbench::setup::NoLogger,
+            typename TChecker = kitgenbench::setup::NoChecker>
   struct InstructionDetails {
-    Aggregate<membenchmc::setup::NoRecipe> recipes{};
-    Aggregate<membenchmc::setup::NoLogger> loggers{};
-    Aggregate<membenchmc::setup::NoChecker> checkers{};
+    Aggregate<kitgenbench::setup::NoRecipe> recipes{};
+    Aggregate<kitgenbench::setup::NoLogger> loggers{};
+    Aggregate<kitgenbench::setup::NoChecker> checkers{};
 
     auto sendTo([[maybe_unused]] auto const& device, [[maybe_unused]] auto& queue) {
       // This is not exactly how it's supposed to be used (or at least it's not necessary). You
@@ -69,9 +69,9 @@ namespace setups {
     InstructionDetails<> makeInstructionDetails() { return {}; }
 
     auto composeSetup() {
-      return membenchmc::setup::composeSetup("No Setup", makeExecutionDetails(),
-                                             makeInstructionDetails(),
-                                             {"what it does", "This does exactly nothing."});
+      return kitgenbench::setup::composeSetup("No Setup", makeExecutionDetails(),
+                                              makeInstructionDetails(),
+                                              {"what it does", "This does exactly nothing."});
     }
   }  // namespace nosetup
 }  // namespace setups
@@ -92,10 +92,10 @@ namespace setups::singleSizeMalloc {
     ALPAKA_FN_ACC auto next([[maybe_unused]] const auto& acc) {
       if (counter >= numAllocations)
         return std::make_tuple(
-            membenchmc::Actions::STOP,
+            kitgenbench::Actions::STOP,
             std::span<std::byte>{static_cast<std::byte*>(nullptr), allocationSize});
       pointers[counter] = static_cast<std::byte*>(malloc(allocationSize));
-      auto result = std::make_tuple(+membenchmc::Actions::MALLOC,
+      auto result = std::make_tuple(+kitgenbench::Actions::MALLOC,
                                     std::span(pointers[counter], allocationSize));
       counter++;
       return result;
@@ -128,18 +128,18 @@ namespace setups::mallocFreeManySize {
 
     ALPAKA_FN_ACC auto next([[maybe_unused]] const auto& acc) {
       if (currentIndex >= sizes.size())
-        return std::make_tuple(membenchmc::Actions::STOP,
+        return std::make_tuple(kitgenbench::Actions::STOP,
                                std::span<std::byte>{static_cast<std::byte*>(nullptr), 0U});
 
       if (currentPointer == nullptr) {
         currentPointer = malloc(sizes[currentIndex]);
         return std::make_tuple(
-            +membenchmc::Actions::MALLOC,
+            +kitgenbench::Actions::MALLOC,
             std::span<std::byte>{static_cast<std::byte*>(currentPointer), sizes[currentIndex]});
       } else {
         free(currentPointer);
         auto result = std::make_tuple(
-            +membenchmc::Actions::FREE,
+            +kitgenbench::Actions::FREE,
             std::span<std::byte>{static_cast<std::byte*>(currentPointer), sizes[currentIndex]});
         currentPointer = nullptr;
         currentIndex++;

@@ -1,10 +1,10 @@
-[![Actions Status](https://github.com/chillenzer/MemBenchMC/workflows/Ubuntu/badge.svg)](https://github.com/chillenzer/MemBenchMC/actions)
-[![Actions Status](https://github.com/chillenzer/MemBenchMC/workflows/Install/badge.svg)](https://github.com/chillenzer/MemBenchMC/actions)
-[![codecov](https://codecov.io/gh/chillenzer/MemBenchMC/branch/master/graph/badge.svg)](https://codecov.io/gh/chillenzer/MemBenchMC)
+[![Actions Status](https://github.com/chillenzer/KitGenBench/workflows/Ubuntu/badge.svg)](https://github.com/chillenzer/KitGenBench/actions)
+[![Actions Status](https://github.com/chillenzer/KitGenBench/workflows/Install/badge.svg)](https://github.com/chillenzer/KitGenBench/actions)
+[![codecov](https://codecov.io/gh/chillenzer/KitGenBench/branch/master/graph/badge.svg)](https://codecov.io/gh/chillenzer/KitGenBench)
 
-# MemBenchMC
+# KitGenBench
 
-MemBenchMC is a Memory Benchmark for Many-Core Architectures.
+KitGenBench is a Memory Benchmark for Many-Core Architectures.
 
 ### Build and run the standalone target
 
@@ -13,7 +13,7 @@ Use the following command to build and run the executable target.
 ```bash
 cmake -S standalone -B build/standalone
 cmake --build build/standalone
-./build/standalone/MemBenchMC --help
+./build/standalone/KitGenBench --help
 ```
 
 ### Build and run test suite
@@ -26,14 +26,14 @@ cmake --build build/test
 CTEST_OUTPUT_ON_FAILURE=1 cmake --build build/test --target test
 
 # or simply call the executable:
-./build/test/MemBenchMCTests
+./build/test/KitGenBenchTests
 ```
 
 To collect code coverage information, run CMake with the `-DENABLE_TEST_COVERAGE=1` option.
 
 ### Build the documentation
 
-The documentation is automatically built and [published](https://chillenzer.github.io/MemBenchMC) whenever a [GitHub Release](https://help.github.com/en/github/administering-a-repository/managing-releases-in-a-repository) is created.
+The documentation is automatically built and [published](https://chillenzer.github.io/KitGenBench) whenever a [GitHub Release](https://help.github.com/en/github/administering-a-repository/managing-releases-in-a-repository) is created.
 To manually build documentation, call the following command.
 
 ```bash
@@ -55,11 +55,11 @@ cmake -S all -B build
 cmake --build build
 
 # run tests
-./build/test/MemBenchMCTests
+./build/test/KitGenBenchTests
 # format code
 cmake --build build --target fix-format
 # run standalone
-./build/standalone/MemBenchMC --help
+./build/standalone/KitGenBench --help
 # build docs
 cmake --build build --target GenerateDocs
 ```

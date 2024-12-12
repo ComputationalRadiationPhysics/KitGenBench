@@ -1,5 +1,5 @@
 #pragma once
-#include <membenchmc/setup.h>
+#include <kitgenbench/setup.h>
 
 #include <alpaka/acc/Traits.hpp>
 #include <alpaka/alpaka.hpp>
@@ -11,7 +11,7 @@
 
 #include "alpaka/queue/Properties.hpp"
 
-namespace membenchmc {
+namespace kitgenbench {
 
   template <typename TAcc, typename TDev> struct ExecutionDetails {
     alpaka::WorkDivMembers<alpaka::Dim<TAcc>, alpaka::Idx<TAcc>> workdiv{};
@@ -122,4 +122,4 @@ namespace membenchmc {
    * @return nlohmann::json A JSON object containing the gathered metadata.
    */
   nlohmann::json gatherMetadata();
-}  // namespace membenchmc
+}  // namespace kitgenbench

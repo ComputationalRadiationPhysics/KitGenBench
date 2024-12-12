@@ -4,7 +4,7 @@ if(POLICY CMP0167)
     cmake_policy(SET CMP0167 NEW)
 endif()
 # ---- Project ----
-project(MemBenchMC VERSION 0.1 LANGUAGES CXX)
+project(KitGenBench VERSION 0.1 LANGUAGES CXX)
 
 # ---- Include guards ----
 

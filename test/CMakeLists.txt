@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.14...3.22)
 if(POLICY CMP0167)
     cmake_policy(SET CMP0167 NEW)
 endif()
-project(MemBenchMCTests LANGUAGES CXX)
+project(KitGenBenchTests LANGUAGES CXX)
 
 # ---- Options ----
 
@@ -33,9 +33,9 @@ cpmaddpackage(
 )
 
 if(TEST_INSTALLED_VERSION)
-    find_package(MemBenchMC REQUIRED)
+    find_package(KitGenBench REQUIRED)
 else()
-    cpmaddpackage(NAME MemBenchMC SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/..)
+    cpmaddpackage(NAME KitGenBench SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/..)
 endif()
 
 # ---- Create binary ----
@@ -45,7 +45,7 @@ alpaka_add_executable(${PROJECT_NAME} ${sources})
 target_link_libraries(
     ${PROJECT_NAME}
     doctest::doctest
-    MemBenchMC::MemBenchMC
+    KitGenBench::KitGenBench
     nlohmann_json::nlohmann_json
     alpaka::alpaka
 )
@@ -60,7 +60,7 @@ if(NOT TEST_INSTALLED_VERSION)
         OR CMAKE_CXX_COMPILER_ID MATCHES "GNU"
     )
         target_compile_options(
-            MemBenchMC
+            KitGenBench
             PUBLIC
                 -Wall
                 "$<$<COMPILE_LANGUAGE:CXX>:-Wpedantic>"
@@ -69,7 +69,7 @@ if(NOT TEST_INSTALLED_VERSION)
                 "$<$<COMPILE_LANGUAGE:CUDA>:all-warnings>"
         )
     elseif(MSVC)
-        target_compile_options(MemBenchMC PUBLIC /W4 /WX)
+        target_compile_options(KitGenBench PUBLIC /W4 /WX)
         target_compile_definitions(
             ${PROJECT_NAME}
             PUBLIC DOCTEST_CONFIG_USE_STD_HEADERS
@@ -77,7 +77,7 @@ if(NOT TEST_INSTALLED_VERSION)
     endif()
 endif()
 
-# ---- Add MemBenchMCTests ----
+# ---- Add KitGenBenchTests ----
 
 enable_testing()
 
@@ -92,8 +92,8 @@ doctest_discover_tests(${PROJECT_NAME})
 
 if(ENABLE_TEST_COVERAGE)
     target_compile_options(
-        MemBenchMC
+        KitGenBench
         PUBLIC -O0 -g -fprofile-arcs -ftest-coverage
     )
-    target_link_options(MemBenchMC PUBLIC -fprofile-arcs -ftest-coverage)
+    target_link_options(KitGenBench PUBLIC -fprofile-arcs -ftest-coverage)
 endif()

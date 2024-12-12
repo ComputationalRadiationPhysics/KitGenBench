@@ -8,7 +8,7 @@
 #  include <cuda_runtime.h>
 #endif
 
-namespace membenchmc {
+namespace kitgenbench {
   template <typename TAccTag> struct DeviceClock;
 
   template <> struct DeviceClock<alpaka::TagCpuSerial> {
@@ -38,4 +38,4 @@ namespace membenchmc {
   };
 
 #endif
-}  // namespace membenchmc
+}  // namespace kitgenbench

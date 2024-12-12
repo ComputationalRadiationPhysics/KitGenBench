@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.14...3.22)
 if(POLICY CMP0167)
     cmake_policy(SET CMP0167 NEW)
 endif()
-project(MemBenchMCStandalone LANGUAGES CXX)
+project(KitGenBenchStandalone LANGUAGES CXX)
 
 # --- Import tools ----
 
@@ -25,7 +25,7 @@ cpmaddpackage(
   GIT_TAG 1.2.0
 )
 
-cpmaddpackage(NAME MemBenchMC SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/..)
+cpmaddpackage(NAME KitGenBench SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/..)
 
 # ---- Create standalone executable ----
 
@@ -37,14 +37,14 @@ set_target_properties(
     ${PROJECT_NAME}
     PROPERTIES
         CXX_STANDARD 20
-        OUTPUT_NAME "MemBenchMC"
+        OUTPUT_NAME "KitGenBench"
         CXX_STANDARD_REQUIRED ON
         CXX_EXTENSIONS OFF
 )
 
 target_link_libraries(
     ${PROJECT_NAME}
-    MemBenchMC::MemBenchMC
+    KitGenBench::KitGenBench
     nlohmann_json::nlohmann_json
     alpaka::alpaka
 )

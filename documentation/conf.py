@@ -10,10 +10,10 @@ LINKS_NAVBAR1 = [
 
 # LINKS_NAVBAR1 = [
 #     (None, 'pages', [(None, 'about')]),
-#     (None, 'namespaces', [(None, 'namespacemembenchmc')]),
+#     (None, 'namespaces', [(None, 'namespacekitgenbench')]),
 # ]
 #
 # LINKS_NAVBAR2 = [
-#     (None, 'annotated', [(None, 'classmembenchmc_1_1_membenchmc')]),
-#     (None, 'files', [(None, 'membenchmc_8h')]),
+#     (None, 'annotated', [(None, 'classkitgenbench_1_1_kitgenbench')]),
+#     (None, 'files', [(None, 'kitgenbench_8h')]),
 # ]

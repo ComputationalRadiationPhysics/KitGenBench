@@ -6,14 +6,14 @@
 
 #include "nlohmann/json.hpp"
 
-namespace membenchmc::Actions {
+namespace kitgenbench::Actions {
   // This namespace mimics an enum but is supposed to be extended by the user to allow for more
   // setups. Library-defined actions have negative values, user-defined positive ones.
   static constexpr int STOP = -1;
   static constexpr int CHECK = -2;
-}  // namespace membenchmc::Actions
+}  // namespace kitgenbench::Actions
 
-namespace membenchmc::setup {
+namespace kitgenbench::setup {
   template <typename TExecutionDetails, typename TInstructionDetails> struct Setup {
     std::string name{};
     TExecutionDetails execution{};
@@ -53,4 +53,4 @@ namespace membenchmc::setup {
 
     nlohmann::json generateReport() { return {}; }
   };
-}  // namespace membenchmc::setup
+}  // namespace kitgenbench::setup
