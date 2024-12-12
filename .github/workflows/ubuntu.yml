@@ -13,7 +13,7 @@ on:
 env:
   CTEST_OUTPUT_ON_FAILURE: 1
   CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-  CPM_SOURCE_CACHE: ${{ github.workspace }}/cpm_modules
+  CPM_SOURCE_CACHE: ${{ github.workspace }}/cpm_modules2
 
 jobs:
   build:
@@ -24,7 +24,7 @@ jobs:
 
       - uses: actions/cache@v3
         with:
-          path: "**/cpm_modules"
+          path: "**/cpm_modules2"
           key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
 
       - name: install_boost
