@@ -11,8 +11,8 @@ include(../cmake/tools.cmake)
 enable_testing()
 
 add_subdirectory(
-    ${CMAKE_CURRENT_LIST_DIR}/../standalone
-    ${CMAKE_BINARY_DIR}/standalone
+    ${CMAKE_CURRENT_LIST_DIR}/../examples
+    ${CMAKE_BINARY_DIR}/examples
 )
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../test ${CMAKE_BINARY_DIR}/test)
 add_subdirectory(

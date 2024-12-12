@@ -1,17 +1,17 @@
 cmake_minimum_required(VERSION 3.14...3.22)
 
 if(POLICY CMP0167)
-    cmake_policy(SET CMP0167 NEW)
+  cmake_policy(SET CMP0167 NEW)
 endif()
-project(KitGenBenchStandalone LANGUAGES CXX)
+project(KitGenBenchExamplePlainMalloc LANGUAGES CXX)
 
 # --- Import tools ----
 
-include(../cmake/tools.cmake)
+include(../../cmake/tools.cmake)
 
 # ---- Dependencies ----
 
-include(../cmake/CPM.cmake)
+include(../../cmake/CPM.cmake)
 
 cpmaddpackage(
   NAME nlohmann_json
@@ -25,7 +25,7 @@ cpmaddpackage(
   GIT_TAG 1.2.0
 )
 
-cpmaddpackage(NAME KitGenBench SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/..)
+cpmaddpackage(NAME KitGenBench SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/../..)
 
 # ---- Create standalone executable ----
 
@@ -37,7 +37,7 @@ set_target_properties(
     ${PROJECT_NAME}
     PROPERTIES
         CXX_STANDARD 20
-        OUTPUT_NAME "KitGenBench"
+        OUTPUT_NAME ${PROJECT_NAME}
         CXX_STANDARD_REQUIRED ON
         CXX_EXTENSIONS OFF
 )
