@@ -2,9 +2,39 @@
 [![Actions Status](https://github.com/chillenzer/KitGenBench/workflows/Install/badge.svg)](https://github.com/chillenzer/KitGenBench/actions)
 [![codecov](https://codecov.io/gh/chillenzer/KitGenBench/branch/master/graph/badge.svg)](https://codecov.io/gh/chillenzer/KitGenBench)
 
+Have you ever sat in a restaurant and wondered: Why the heck do they already have their Cock Au Vin on the next table and my simple pasta is taking forever? If you're anything like us, you immediately apply for funding to set up a large scale experiment measuring preparation times for all combinations of recipes. It's, of course, the only reasonable thing to do.
+
+Well, we can't help you with the funding. What we can offer you is a comfy kitchen bench to take a seat, observe and come up with a unified theory of bolognesio synthesis revolutionising the field. So, compose your recipe, lean back and observe...
+
+Wait, did we say "kitchen bench"? We meant...
+
 # KitGenBench
 
-KitGenBench is a Memory Benchmark for Many-Core Architectures.
+KitGenBench is a Kit for Generating (Micro-)Benchmarks based on [alpaka](https://github.com/alpaka-group/alpaka).
+As such, it is suitable to generate benchmarks on a wide variety of hardware architectures
+including all major CPU and GPU vendors as well as some FPGAs.
+
+## Usage
+
+The main idea is very simple:
+You provide three pieces of information that will be used by the infrastructure to run benchmarks.
+These are:
+
+- a recipe saying what the benchmark does
+- a checker saying how to verify correctness of the benchmarks
+- a logger saying how to record what happens during the benchmark
+
+The main loop of the program is as simple as (up to technical details)
+```C++
+while (not recipeExhausted) {
+  result = logger.call([]{recipe.next();});
+  logger.call([]{checker.check(result);});
+}
+```
+
+See [examples](./examples) for recipes inspirations and technical details.
+
+## Installation
 
 ### Build and run the standalone target
 
