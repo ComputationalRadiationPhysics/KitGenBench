@@ -1,4 +1,4 @@
-name: Standalone
+name: Examples
 
 on:
   push:
@@ -31,10 +31,10 @@ jobs:
           sudo apt-get install libboost-all-dev
 
       - name: configure
-        run: cmake -Sstandalone -Bbuild -DCMAKE_BUILD_TYPE=Debug -Dalpaka_ACC_CPU_B_SEQ_T_SEQ_ENABLE:BOOL=ON
+        run: cmake -Sexamples -Bbuild -DCMAKE_BUILD_TYPE=Debug -Dalpaka_ACC_CPU_B_SEQ_T_SEQ_ENABLE:BOOL=ON
 
       - name: build
         run: cmake --build build -j4
 
       - name: run
-        run: ./build/KitGenBench
+        run: find build/examples -name 'KitGenBench*' -type f -executable -not -wholename '*/CMakeFiles/*' -exec {} \;
