@@ -18,22 +18,6 @@ namespace kitgenbench {
     TDev device{};
   };
 
-  template <typename TRecipe>
-  concept Recipe = requires(TRecipe recipe) {
-    { std::get<0>(recipe.next()) } -> std::same_as<decltype(Actions::STOP)>;
-  };
-
-  template <typename TLogger, typename TFunctor>
-  concept Logger = requires(TLogger logger, TFunctor func) {
-    { (logger.call(func)) } -> std::same_as<decltype(func())>;
-  };
-
-  template <typename TChecker, typename TResult>
-  concept Checker = requires(TChecker checker, TResult result) {
-    std::get<0>(checker.check(result)) == Actions::CHECK;
-    { std::get<1>(checker.check(result)) } -> std::same_as<bool>;
-  };
-
   struct BenchmarkKernel {
     template <typename TAcc>
     ALPAKA_FN_ACC auto operator()(TAcc const& acc, auto* instructions) const -> void {
