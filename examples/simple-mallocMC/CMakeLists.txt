@@ -30,8 +30,8 @@ cpmaddpackage(
 # https://github.com/cpm-cmake/CPM.cmake?tab=readme-ov-file #lua
 cpmaddpackage(
   NAME mallocMC
-  URL file:///home/lenz/workspace/src/mallocMC-modern
-  GIT_TAG main
+  GITHUB_REPOSITORY chillenzer/mallocMC
+  GIT_TAG update-cmake
 )
 
 cpmaddpackage(NAME KitGenBench SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/../..)
