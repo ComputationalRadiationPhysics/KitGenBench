@@ -25,9 +25,6 @@ cpmaddpackage(
   GIT_TAG 1.2.0
 )
 
-# mallocMC does not have a modern cmake yet.
-# We use the approach from here:
-# https://github.com/cpm-cmake/CPM.cmake?tab=readme-ov-file #lua
 cpmaddpackage(
   NAME mallocMC
   GITHUB_REPOSITORY chillenzer/mallocMC
