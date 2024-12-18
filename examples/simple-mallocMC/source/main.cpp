@@ -61,8 +61,6 @@ auto makeExecutionDetails() {
           {numThreads / numThreadsPerBlock}, {numThreadsPerBlock}, {1U}};
     }
   }();
-  auto queue = alpaka::Queue<Acc, alpaka::Blocking>{dev};
-  auto alloc = MyAllocator(dev, queue);
   return kitgenbench::ExecutionDetails<Acc, decltype(dev)>{workdiv, dev};
 }
 
