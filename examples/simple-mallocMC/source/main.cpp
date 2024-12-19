@@ -39,6 +39,10 @@ using MyAllocator
     = mallocMC::Allocator<Acc, CreationPolicies::FlatterScatter<>, DistributionPolicies::Noop,
                           OOMPolicies::ReturnNull, ReservePoolPolicies::AlpakaBuf<Acc>,
                           AlignmentPolicies::Shrink<>>;
+using MyAllocatorHandle =
+    typename std::remove_cvref_t<decltype(std::declval<MyAllocator>().getAllocatorHandle())>;
+static constexpr std::uint32_t ALLOCATION_SIZE = 16U;
+static constexpr std::size_t HEAP_SIZE = 1024U * 1024U * 1024U;
 
 namespace kitgenbench::Actions {
   [[maybe_unused]] static constexpr int MALLOC = 1;
@@ -48,11 +52,8 @@ namespace kitgenbench::Actions {
 auto makeExecutionDetails() {
   auto const platformAcc = alpaka::Platform<Acc>{};
   auto const dev = alpaka::getDevByIdx(platformAcc, 0);
-#ifdef ALPAKA_ACC_GPU_CUDA_ENABLED
-  cudaDeviceSetLimit(cudaLimitMallocHeapSize, 1024U * 1024U * 1024U);
-#endif
   uint32_t const numThreadsPerBlock = 256U;
-  uint32_t const numThreads = 4U * numThreadsPerBlock;
+  uint32_t const numThreads = 16U * numThreadsPerBlock;
   auto workdiv = [numThreads, numThreadsPerBlock]() -> alpaka::WorkDivMembers<Dim, Idx> {
     if constexpr (std::is_same_v<alpaka::AccToTag<Acc>, alpaka::TagCpuSerial>) {
       return {{1U}, {1U}, {numThreads}};
@@ -63,8 +64,6 @@ auto makeExecutionDetails() {
   }();
   return kitgenbench::ExecutionDetails<Acc, decltype(dev)>{workdiv, dev};
 }
-
-static constexpr std::uint32_t ALLOCATION_SIZE = 16U;
 
 // Reasons for the check to yield the result it yielded.
 // `completed` means that the check completed. The result can still be true/false depending on
@@ -209,6 +208,13 @@ template <typename T> struct NoStoreProvider {
   nlohmann::json generateReport() { return {}; }
 };
 
+template <typename T, typename... T_Resource> struct ResourceProvider {
+  std::tuple<T_Resource...> resources{};
+  ALPAKA_FN_ACC T load(auto const) { return {resources}; }
+  ALPAKA_FN_ACC void store(auto const&, T&&, auto const) {}
+  nlohmann::json generateReport() { return {}; }
+};
+
 template <typename T> struct AccumulateResultsProvider {
   T result{};
   ALPAKA_FN_ACC T load(auto const) { return {}; }
@@ -229,6 +235,9 @@ template <typename T> struct AcumulateChecksProvider {
 
 namespace setups {
   struct SingleSizeMallocRecipe {
+    ALPAKA_FN_ACC SingleSizeMallocRecipe(std::tuple<MyAllocatorHandle> handleInTuple)
+        : handle{std::get<0>(handleInTuple)} {}
+    MyAllocatorHandle handle;
     static constexpr std::uint32_t allocationSize{ALLOCATION_SIZE};
     static constexpr std::uint32_t numAllocations{256U};
     std::array<std::byte*, numAllocations> pointers{{}};
@@ -239,7 +248,7 @@ namespace setups {
         return std::make_tuple(+kitgenbench::Actions::STOP,
                                Payload(std::span<std::byte, allocationSize>{
                                    static_cast<std::byte*>(nullptr), allocationSize}));
-      pointers[counter] = static_cast<std::byte*>(malloc(allocationSize));
+      pointers[counter] = static_cast<std::byte*>(handle.malloc(acc, allocationSize));
       auto result = std::make_tuple(
           +kitgenbench::Actions::MALLOC,
           Payload(std::span<std::byte, allocationSize>(pointers[counter], allocationSize)));
@@ -252,19 +261,25 @@ namespace setups {
 
   template <typename TAcc, typename TDev> struct InstructionDetails {
     struct DevicePackage {
-      NoStoreProvider<SingleSizeMallocRecipe> recipes{};
+      ResourceProvider<SingleSizeMallocRecipe, MyAllocatorHandle> recipes{};
       AccumulateResultsProvider<SimpleSumLogger<AccTag>> loggers{};
       AcumulateChecksProvider<IotaReductionChecker> checkers{};
+
+      DevicePackage(MyAllocatorHandle handle) : recipes{handle} {};
     };
 
-    DevicePackage hostData{};
+    DevicePackage hostData;
     alpaka::Buf<TDev, DevicePackage, alpaka::Dim<TAcc>, alpaka::Idx<TAcc>> devicePackageBuffer;
 
-    InstructionDetails(TDev const& device)
-        : devicePackageBuffer(alpaka::allocBuf<DevicePackage, Idx>(device, 1U)) {};
+    InstructionDetails(TDev const& device, auto allocatorHandle)
+        : hostData(allocatorHandle),
+          devicePackageBuffer(alpaka::allocBuf<DevicePackage, Idx>(device, 1U)) {};
 
     auto sendTo([[maybe_unused]] TDev const& device, auto& queue) {
-      alpaka::memset(queue, devicePackageBuffer, 0U);
+      auto const platformHost = alpaka::PlatformCpu{};
+      auto const devHost = getDevByIdx(platformHost, 0);
+      auto view = alpaka::createView(devHost, &hostData, 1U);
+      alpaka::memcpy(queue, devicePackageBuffer, view);
       return reinterpret_cast<DevicePackage*>(alpaka::getPtrNative(devicePackageBuffer));
     }
     auto retrieveFrom([[maybe_unused]] TDev const& device, auto& queue) {
@@ -281,14 +296,15 @@ namespace setups {
     }
   };
 
-  template <typename TAcc, typename TDev> auto makeInstructionDetails(TDev const& device) {
-    return InstructionDetails<TAcc, TDev>(device);
+  template <typename TAcc, typename TDev>
+  auto makeInstructionDetails(TDev const& device, auto allocatorHandle) {
+    return InstructionDetails<TAcc, TDev>(device, allocatorHandle);
   }
 
-  auto composeSetup() {
+  auto composeSetup(auto allocatorHandle) {
     auto execution = makeExecutionDetails();
     return setup::composeSetup("Non trivial", execution,
-                               makeInstructionDetails<Acc>(execution.device), {});
+                               makeInstructionDetails<Acc>(execution.device, allocatorHandle), {});
   }
 }  // namespace setups
 
@@ -314,9 +330,16 @@ json composeReport(json const& metadata, json const& benchmarkReports) {
 
 void output(json const& report) { std::cout << report << std::endl; }
 
+auto setupAllocator(auto const& device, auto HEAP_SIZE) {
+  auto queue = alpaka::Queue<Acc, alpaka::Blocking>(device);
+  return MyAllocator(device, queue, HEAP_SIZE);
+}
+
 auto main() -> int {
   auto metadata = gatherMetadata();
-  auto setup = setups::composeSetup();
+  auto execution = makeExecutionDetails();
+  MyAllocator allocator = setupAllocator(execution.device, HEAP_SIZE);
+  auto setup = setups::composeSetup(allocator.getAllocatorHandle());
   auto benchmarkReports = runBenchmarks(setup);
   auto report = composeReport(metadata, benchmarkReports);
   output(report);

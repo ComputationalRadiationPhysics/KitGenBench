@@ -11,6 +11,7 @@
 namespace kitgenbench {
   template <typename TAccTag> struct DeviceClock;
 
+#ifndef ALPAKA_ACC_GPU_CUDA_ENABLED
   template <> struct DeviceClock<alpaka::TagCpuSerial> {
     using DurationType = float;
     ALPAKA_FN_INLINE ALPAKA_FN_ACC static auto clock() {
@@ -25,7 +26,7 @@ namespace kitgenbench {
     }
   };
 
-#ifdef ALPAKA_ACC_GPU_CUDA_ENABLED
+#else
 
   template <> struct DeviceClock<alpaka::TagGpuCudaRt> {
     using DurationType = float;
