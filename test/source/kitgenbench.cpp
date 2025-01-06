@@ -44,9 +44,9 @@ namespace setups {
             typename TLogger = kitgenbench::setup::NoLogger,
             typename TChecker = kitgenbench::setup::NoChecker>
   struct InstructionDetails {
-    Aggregate<kitgenbench::setup::NoRecipe> recipes{};
-    Aggregate<kitgenbench::setup::NoLogger> loggers{};
-    Aggregate<kitgenbench::setup::NoChecker> checkers{};
+    Aggregate<TRecipe> recipes{};
+    Aggregate<TLogger> loggers{};
+    Aggregate<TChecker> checkers{};
 
     auto sendTo([[maybe_unused]] auto const& device, [[maybe_unused]] auto& queue) {
       // This is not exactly how it's supposed to be used (or at least it's not necessary). You
@@ -121,15 +121,18 @@ TEST_CASE("Single size malloc") {
 
 namespace setups::mallocFreeManySize {
 
+  std::vector<std::uint32_t> ALLOCATION_SIZES
+      = {16U, 256U, 1024U, 16U, 16U, 256U, 16U, 1024U, 1024U};
   struct MallocFreeRecipe {
-    std::vector<std::uint32_t> sizes{};
+    std::vector<std::uint32_t> sizes{ALLOCATION_SIZES};
     std::uint32_t currentIndex{0U};
     void* currentPointer{nullptr};
 
     ALPAKA_FN_ACC auto next([[maybe_unused]] const auto& acc) {
-      if (currentIndex >= sizes.size())
+      if (currentIndex >= sizes.size()) {
         return std::make_tuple(kitgenbench::Actions::STOP,
                                std::span<std::byte>{static_cast<std::byte*>(nullptr), 0U});
+      }
 
       if (currentPointer == nullptr) {
         currentPointer = malloc(sizes[currentIndex]);
@@ -150,8 +153,6 @@ namespace setups::mallocFreeManySize {
     nlohmann::json generateReport() { return {}; }
   };
 
-  std::vector<std::uint32_t> ALLOCATION_SIZES
-      = {16U, 256U, 1024U, 16U, 16U, 256U, 16U, 1024U, 1024U};
   auto makeInstructionDetails() { return InstructionDetails<MallocFreeRecipe>{}; }
 
   namespace detail {
