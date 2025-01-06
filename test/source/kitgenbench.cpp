@@ -5,6 +5,7 @@
 #include <sys/types.h>
 
 #include <alpaka/core/Common.hpp>
+#include <cstdint>
 #include <string>
 
 #include "nlohmann/json.hpp"
@@ -121,10 +122,8 @@ TEST_CASE("Single size malloc") {
 
 namespace setups::mallocFreeManySize {
 
-  std::vector<std::uint32_t> ALLOCATION_SIZES
-      = {16U, 256U, 1024U, 16U, 16U, 256U, 16U, 1024U, 1024U};
   struct MallocFreeRecipe {
-    std::vector<std::uint32_t> sizes{ALLOCATION_SIZES};
+    const std::array<std::uint32_t, 9> sizes{16U, 256U, 1024U, 16U, 16U, 256U, 16U, 1024U, 1024U};
     std::uint32_t currentIndex{0U};
     void* currentPointer{nullptr};
 
@@ -155,29 +154,17 @@ namespace setups::mallocFreeManySize {
 
   auto makeInstructionDetails() { return InstructionDetails<MallocFreeRecipe>{}; }
 
-  namespace detail {
-    template <typename T> T unique(T const& values) {
-      // It's a pity but the following are algorithms and not "adaptors", so the pipe operator
-      // doesn't work.
-      T tmp = values;
-      std::ranges::sort(tmp);
-      const auto [new_end, old_end] = std::ranges::unique(tmp);
-      return {std::begin(tmp), new_end};
-    }
-  }  // namespace detail
-
   auto composeSetup() {
     return composeSetup("mallocFreeManySize", makeExecutionDetails(), makeInstructionDetails(),
                         {{"what it does",
                           "This setup runs through a given vector of allocation sizes, allocating "
                           "and deallocating each size one after another."},
-                         {"number of allocations", ALLOCATION_SIZES.size()},
-                         {"available allocation sizes [bytes]", detail::unique(ALLOCATION_SIZES)}});
+                         {"number of allocations", MallocFreeRecipe{}.sizes.size()}});
   }
 
 }  // namespace setups::mallocFreeManySize
 
 TEST_CASE("Malloc free many size") {
   auto setup = setups::mallocFreeManySize::composeSetup();
-  auto benchmarkReports = runBenchmarks(setup);
+  auto benchmarkReports = kitgenbench::runBenchmarks(setup);
 }
