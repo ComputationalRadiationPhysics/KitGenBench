@@ -65,7 +65,7 @@ static constexpr std::uint32_t ALLOCATION_SIZE = 16U;
 // whether the obtained value was actually correct. `notApplicable` means that the checks were
 // skipped. `nullpointer` means that a nullpointer was given, so the checks couldn't run at all.
 enum class Reason { completed, notApplicable, nullpointer };
-using Payload = std::variant<std::span<std::byte, ALLOCATION_SIZE>, std::pair<bool, Reason>>;
+using Payload = std::variant<std::span<std::byte>, std::pair<bool, Reason>>;
 
 template <typename TAccTag> struct SimpleSumLogger {
   using Clock = DeviceClock<TAccTag>;
@@ -175,13 +175,16 @@ struct IotaReductionChecker {
     if (std::get<0>(result) != Actions::MALLOC) {
       return std::make_tuple(Actions::CHECK, Payload(std::make_pair(true, Reason::notApplicable)));
     }
-    auto range = std::get<1>(result);
+    auto range = std::get<0>(std::get<1>(result));
     if (range.data() == nullptr) {
       return std::make_tuple(Actions::CHECK, Payload(std::make_pair(false, Reason::nullpointer)));
     }
     auto uintRange = convertDataType<uint32_t>(range);
+
+    // TODO: Segmentation fault by std::iota
     std::iota(std::begin(uintRange), std::end(uintRange), currentValue);
     size_t n = uintRange.size();
+
     // The exact formula is using size_t because n is size_t. Casting it down will oftentimes run
     // into an overflow that the reduction encounters, too.
     auto expected = static_cast<uint32_t>(n * currentValue + n * (n - 1) / 2) ^ currentValue;
@@ -229,15 +232,14 @@ namespace setups {
    std::array<std::byte*, allocations> pointers{{}};
    std::uint32_t counter{0U};
 
-   
    ALPAKA_FN_ACC auto next([[maybe_unused]] const auto& acc) {
      if (counter >= allocations)
         return std::make_tuple(kitgenbench::Actions::STOP,
-                               std::span<std::byte>{static_cast<std::byte*>(nullptr), 0U});
+                               Payload(std::span<std::byte>{static_cast<std::byte*>(nullptr), 0U}));
      pointers[counter] = static_cast<std::byte*>(malloc(sizes[counter]));
      auto result = std::make_tuple(
          +kitgenbench::Actions::MALLOC,
-         std::span<std::byte>(pointers[counter], sizes[counter]));
+         Payload(std::span<std::byte>(pointers[counter], sizes[counter])));
      counter++;
      return result;
     }
