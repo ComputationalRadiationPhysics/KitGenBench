@@ -278,7 +278,7 @@ namespace setups {
     return InstructionDetails<size, TAcc, TDev>(device);
   }
 
-  using ALLOCATION_SIZES = std::integer_sequence<uint32_t, 16U, 256U>;
+  using ALLOCATION_SIZES = std::integer_sequence<uint32_t, 16U, 32U, 128U, 256U, 512U, 1024U>;
 
   template <uint32_t... nums> auto composeSetups(std::integer_sequence<uint32_t, nums...>) {
     auto execution = makeExecutionDetails();
