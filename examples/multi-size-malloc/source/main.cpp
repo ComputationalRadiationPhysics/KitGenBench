@@ -164,8 +164,20 @@ constexpr auto isSpan(T<TType, TExtent>) {
 
 template <typename TNew, typename TOld, std::size_t TExtent>
 constexpr auto convertDataType(std::span<TOld, TExtent>& range) {
+  if constexpr(TExtent == std::dynamic_extent) {
+    return std::span<TNew>(
+      reinterpret_cast<TNew*>(range.data()), range.size() * sizeof(TOld) / sizeof(TNew)
+    );
+  }
   return std::span<TNew, TExtent * sizeof(TOld) / sizeof(TNew)>(
       reinterpret_cast<TNew*>(range.data()), range.size());
+}
+
+template <typename TNew, typename TOld>
+constexpr auto convertDataType2(std::span<TOld>& range) {
+  return std::span<TNew>(
+      reinterpret_cast<TNew*>(range.data()), range.size() * sizeof(TOld) / sizeof(TNew)
+    );
 }
 
 struct IotaReductionChecker {
@@ -179,9 +191,7 @@ struct IotaReductionChecker {
     if (range.data() == nullptr) {
       return std::make_tuple(Actions::CHECK, Payload(std::make_pair(false, Reason::nullpointer)));
     }
-    auto uintRange = convertDataType<uint32_t>(range);
-
-    // TODO: Segmentation fault by std::iota
+    auto uintRange = convertDataType2<uint32_t>(range);
     std::iota(std::begin(uintRange), std::end(uintRange), currentValue);
     size_t n = uintRange.size();
 
