@@ -6,6 +6,7 @@
 #include <alpaka/workdiv/WorkDivMembers.hpp>
 #include <cstdint>
 #include <limits>
+#include <sstream>
 #include <tuple>
 #include <utility>
 #include <variant>
@@ -57,14 +58,12 @@ auto makeExecutionDetails() {
   return kitgenbench::ExecutionDetails<Acc, decltype(dev)>{workdiv, dev};
 }
 
-static constexpr std::uint32_t ALLOCATION_SIZE = 16U;
-
 // Reasons for the check to yield the result it yielded.
 // `completed` means that the check completed. The result can still be true/false depending on
 // whether the obtained value was actually correct. `notApplicable` means that the checks were
 // skipped. `nullpointer` means that a nullpointer was given, so the checks couldn't run at all.
 enum class Reason { completed, notApplicable, nullpointer };
-using Payload = std::variant<std::span<std::byte, ALLOCATION_SIZE>, std::pair<bool, Reason>>;
+using Payload = std::variant<std::span<std::byte>, std::pair<bool, Reason>>;
 
 template <typename TAccTag> struct SimpleSumLogger {
   using Clock = DeviceClock<TAccTag>;
@@ -161,10 +160,9 @@ constexpr auto isSpan(T<TType, TExtent>) {
   return IsSpan<T, TType, TExtent>{};
 }
 
-template <typename TNew, typename TOld, std::size_t TExtent>
-constexpr auto convertDataType(std::span<TOld, TExtent>& range) {
-  return std::span<TNew, TExtent * sizeof(TOld) / sizeof(TNew)>(
-      reinterpret_cast<TNew*>(range.data()), range.size());
+template <typename TNew, typename TOld> constexpr auto convertDataType(std::span<TOld>& range) {
+  return std::span<TNew>(reinterpret_cast<TNew*>(range.data()),
+                         range.size() * sizeof(TOld) / sizeof(TNew));
 }
 
 struct IotaReductionChecker {
@@ -211,6 +209,14 @@ template <typename T> struct AccumulateResultsProvider {
   nlohmann::json generateReport() { return result.generateReport(); }
 };
 
+template <typename T, typename U> struct ArgumentStoringProvider {
+  U argument{};
+  ALPAKA_FN_ACC T load([[maybe_unused]] auto const threadIndex) { return {argument}; }
+  ALPAKA_FN_ACC void store([[maybe_unused]] const auto& acc, [[maybe_unused]] T&& instance,
+                           auto const) {}
+  nlohmann::json generateReport() { return {}; }
+};
+
 template <typename T> struct AcumulateChecksProvider {
   T result{};
   ALPAKA_FN_ACC T load(auto const threadIndex) { return {threadIndex}; }
@@ -222,20 +228,20 @@ template <typename T> struct AcumulateChecksProvider {
 
 namespace setups {
   struct SingleSizeMallocRecipe {
-    static constexpr std::uint32_t allocationSize{ALLOCATION_SIZE};
+    std::uint32_t allocationSize;
     static constexpr std::uint32_t numAllocations{256U};
     std::array<std::byte*, numAllocations> pointers{{}};
     std::uint32_t counter{0U};
 
     ALPAKA_FN_ACC auto next([[maybe_unused]] const auto& acc) {
       if (counter >= numAllocations)
-        return std::make_tuple(+kitgenbench::Actions::STOP,
-                               Payload(std::span<std::byte, allocationSize>{
-                                   static_cast<std::byte*>(nullptr), allocationSize}));
+        return std::make_tuple(
+            +kitgenbench::Actions::STOP,
+            Payload(std::span<std::byte>{static_cast<std::byte*>(nullptr), allocationSize}));
       pointers[counter] = static_cast<std::byte*>(malloc(allocationSize));
-      auto result = std::make_tuple(
-          +kitgenbench::Actions::MALLOC,
-          Payload(std::span<std::byte, allocationSize>(pointers[counter], allocationSize)));
+      auto result
+          = std::make_tuple(+kitgenbench::Actions::MALLOC,
+                            Payload(std::span<std::byte>(pointers[counter], allocationSize)));
       counter++;
       return result;
     }
@@ -245,19 +251,24 @@ namespace setups {
 
   template <typename TAcc, typename TDev> struct InstructionDetails {
     struct DevicePackage {
-      NoStoreProvider<SingleSizeMallocRecipe> recipes{};
+      ArgumentStoringProvider<SingleSizeMallocRecipe, uint32_t> recipes{};
       AccumulateResultsProvider<SimpleSumLogger<AccTag>> loggers{};
       AcumulateChecksProvider<IotaReductionChecker> checkers{};
+
+      DevicePackage(auto size) : recipes{size} {}
     };
 
     DevicePackage hostData{};
     alpaka::Buf<TDev, DevicePackage, alpaka::Dim<TAcc>, alpaka::Idx<TAcc>> devicePackageBuffer;
 
-    InstructionDetails(TDev const& device)
-        : devicePackageBuffer(alpaka::allocBuf<DevicePackage, Idx>(device, 1U)) {};
+    InstructionDetails(TDev const& device, uint32_t size)
+        : hostData(size), devicePackageBuffer(alpaka::allocBuf<DevicePackage, Idx>(device, 1U)) {};
 
     auto sendTo([[maybe_unused]] TDev const& device, auto& queue) {
-      alpaka::memset(queue, devicePackageBuffer, 0U);
+      auto const platformHost = alpaka::PlatformCpu{};
+      auto const devHost = getDevByIdx(platformHost, 0);
+      auto view = alpaka::createView(devHost, &hostData, 1U);
+      alpaka::memcpy(queue, devicePackageBuffer, view);
       return reinterpret_cast<DevicePackage*>(alpaka::getPtrNative(devicePackageBuffer));
     }
     auto retrieveFrom([[maybe_unused]] TDev const& device, auto& queue) {
@@ -274,14 +285,16 @@ namespace setups {
     }
   };
 
-  template <typename TAcc, typename TDev> auto makeInstructionDetails(TDev const& device) {
-    return InstructionDetails<TAcc, TDev>(device);
+  template <typename TAcc, typename TDev>
+  auto makeInstructionDetails(TDev const& device, uint32_t size) {
+    return InstructionDetails<TAcc, TDev>(device, size);
   }
 
-  auto composeSetup() {
+  auto composeSetup(uint32_t size) {
     auto execution = makeExecutionDetails();
-    return setup::composeSetup("Non trivial", execution,
-                               makeInstructionDetails<Acc>(execution.device), {});
+    return setup::composeSetup((std::stringstream{} << "Allocation size: " << size).str(),
+                               execution, makeInstructionDetails<Acc>(execution.device, size),
+                               {{"allocation size", size}});
   }
 }  // namespace setups
 
@@ -309,9 +322,16 @@ void output(json const& report) { std::cout << report << std::endl; }
 
 auto main() -> int {
   auto metadata = gatherMetadata();
-  auto setup = setups::composeSetup();
-  auto benchmarkReports = runBenchmarks(setup);
+  json benchmarkReports = json::object();
+  auto allocationSizes = std::to_array({16U, 32U, 64U, 128U, 256U, 512U, 1024U});
+  for (auto const size : allocationSizes) {
+    auto setup = setups::composeSetup(size);
+    // CAUTION: This overwrites the outermost "total runtime" which will be reported wrongly.
+    benchmarkReports.merge_patch(runBenchmarks(setup));
+  }
   auto report = composeReport(metadata, benchmarkReports);
+  // Hot fix: Remove wrongly "merged", i.e. overwritten, "total runtime".
+  report["benchmarks"].erase("total runtime [ms]");
   output(report);
   return EXIT_SUCCESS;
 }
