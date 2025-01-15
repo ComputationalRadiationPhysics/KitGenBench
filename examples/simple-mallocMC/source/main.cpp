@@ -252,9 +252,9 @@ namespace setups {
 
   template <typename TAcc, typename TDev> struct InstructionDetails {
     struct DevicePackage {
-      NoStoreProvider<SingleSizeMallocRecipe> recipes{};
-      AccumulateResultsProvider<SimpleSumLogger<AccTag>> loggers{};
-      AcumulateChecksProvider<IotaReductionChecker> checkers{};
+      NoStoreProvider<SingleSizeMallocRecipe> recipe{};
+      AccumulateResultsProvider<SimpleSumLogger<AccTag>> logger{};
+      AcumulateChecksProvider<IotaReductionChecker> checker{};
     };
 
     DevicePackage hostData{};
@@ -275,9 +275,9 @@ namespace setups {
     }
 
     nlohmann::json generateReport() {
-      return {{"recipes", hostData.recipes.generateReport()},
-              {"logs", hostData.loggers.generateReport()},
-              {"checks", hostData.checkers.generateReport()}};
+      return {{"recipes", hostData.recipe.generateReport()},
+              {"logs", hostData.logger.generateReport()},
+              {"checks", hostData.checker.generateReport()}};
     }
   };
 
