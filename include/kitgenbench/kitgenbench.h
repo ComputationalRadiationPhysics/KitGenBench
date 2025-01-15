@@ -37,9 +37,9 @@ namespace kitgenbench {
     ALPAKA_FN_ACC void taskForOneThread(auto const& acc, auto const linearizedGlobalThreadIdx,
                                         auto* instructions) const {
       // Get a local copy, so we work on registers and don't strain global memory too much.
-      auto myRecipe = instructions->recipes.load(linearizedGlobalThreadIdx);
-      auto myLogger = instructions->loggers.load(linearizedGlobalThreadIdx);
-      auto myChecker = instructions->checkers.load(linearizedGlobalThreadIdx);
+      auto myRecipe = instructions->recipe.load(linearizedGlobalThreadIdx);
+      auto myLogger = instructions->logger.load(linearizedGlobalThreadIdx);
+      auto myChecker = instructions->checker.load(linearizedGlobalThreadIdx);
 
       bool recipeExhausted = false;
       while (not recipeExhausted) {
@@ -52,9 +52,9 @@ namespace kitgenbench {
       }
 
       // Put our local copy back from where we got it.
-      instructions->recipes.store(acc, std::move(myRecipe), linearizedGlobalThreadIdx);
-      instructions->loggers.store(acc, std::move(myLogger), linearizedGlobalThreadIdx);
-      instructions->checkers.store(acc, std::move(myChecker), linearizedGlobalThreadIdx);
+      instructions->recipe.store(acc, std::move(myRecipe), linearizedGlobalThreadIdx);
+      instructions->logger.store(acc, std::move(myLogger), linearizedGlobalThreadIdx);
+      instructions->checker.store(acc, std::move(myChecker), linearizedGlobalThreadIdx);
     }
   };
 

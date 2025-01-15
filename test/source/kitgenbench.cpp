@@ -58,9 +58,9 @@ namespace setups {
     auto retrieveFrom([[maybe_unused]] auto const& device, [[maybe_unused]] auto& queue) {}
 
     nlohmann::json generateReport() {
-      return {{"recipes", recipes.generateReport()},
-              {"logs", loggers.generateReport()},
-              {"checks", checkers.generateReport()}};
+      return {{"recipes", recipe.generateReport()},
+              {"logs", logger.generateReport()},
+              {"checks", checker.generateReport()}};
     }
   };
 
