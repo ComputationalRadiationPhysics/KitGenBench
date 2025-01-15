@@ -43,9 +43,9 @@ namespace kitgenbench {
 
       bool recipeExhausted = false;
       while (not recipeExhausted) {
-        auto result = myLogger.call(
+        auto result = myLogger.callRecipe(
             acc, [&myRecipe](const auto& acc) mutable { return myRecipe.next(acc); });
-        myLogger.call(acc, [&myChecker, &result](const auto& acc) mutable {
+        myLogger.callChecker(acc, [&myChecker, &result](const auto& acc) mutable {
           return myChecker.check(acc, result);
         });
         recipeExhausted = (std::get<0>(result) == Actions::STOP);

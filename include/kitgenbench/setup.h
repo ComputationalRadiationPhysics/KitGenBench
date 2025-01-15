@@ -41,7 +41,8 @@ namespace kitgenbench::setup {
   };
 
   struct NoLogger {
-    ALPAKA_FN_INLINE ALPAKA_FN_ACC auto call(auto const& acc, auto func) { return func(acc); }
+    ALPAKA_FN_INLINE ALPAKA_FN_ACC auto callRecipe(auto const& acc, auto func) { return func(acc); }
+    ALPAKA_FN_INLINE ALPAKA_FN_ACC auto callChecker(auto const& acc, auto func) { return func(acc); }
 
     nlohmann::json generateReport() { return {}; }
   };

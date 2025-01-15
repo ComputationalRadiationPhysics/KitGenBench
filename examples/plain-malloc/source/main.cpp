@@ -64,7 +64,8 @@ static constexpr std::uint32_t ALLOCATION_SIZE = 16U;
 // whether the obtained value was actually correct. `notApplicable` means that the checks were
 // skipped. `nullpointer` means that a nullpointer was given, so the checks couldn't run at all.
 enum class Reason { completed, notApplicable, nullpointer };
-using Payload = std::variant<std::span<std::byte, ALLOCATION_SIZE>, std::pair<bool, Reason>>;
+using MemoryRegion = std::span<std::byte>;
+using CheckerResult = std::pair<bool, Reason>;
 
 template <typename TAccTag> struct SimpleSumLogger {
   using Clock = DeviceClock<TAccTag>;
@@ -79,7 +80,31 @@ template <typename TAccTag> struct SimpleSumLogger {
   std::uint32_t failedChecksCounter{0U};
   std::uint32_t invalidCheckResults{0U};
 
-  template <typename TAcc> ALPAKA_FN_INLINE ALPAKA_FN_ACC auto call(TAcc const& acc, auto func) {
+  /**
+   * @brief Calls the checker lambda-function `func`
+   */
+  template <typename TAcc> ALPAKA_FN_INLINE ALPAKA_FN_ACC auto callChecker(TAcc const& acc, auto func) {
+    static_assert(
+        std::is_same_v<alpaka::TagToAcc<TAccTag, alpaka::Dim<Acc>, alpaka::Idx<Acc>>, TAcc>);
+    auto result = func(acc);
+
+	auto [passed, reason] = std::get<std::pair<bool, Reason>>(result);
+	if (not passed) {
+		if (reason == Reason::nullpointer) {
+			nullpointersObtained++;
+		}
+		if (reason == Reason::completed) {
+			failedChecksCounter++;
+		}
+	}
+
+	return result;
+  }
+
+  /**
+   * 	@brief Calls next step `func()` originating from a recipe
+   */
+  template <typename TAcc> ALPAKA_FN_INLINE ALPAKA_FN_ACC auto callRecipe(TAcc const& acc, auto func) {
     static_assert(
         std::is_same_v<alpaka::TagToAcc<TAccTag, alpaka::Dim<Acc>, alpaka::Idx<Acc>>, TAcc>);
     auto start = Clock::clock();
@@ -94,22 +119,6 @@ template <typename TAccTag> struct SimpleSumLogger {
     if (std::get<0>(result) == Actions::FREE) {
       freeDuration += Clock::duration(start, end);
       freeCounter++;
-    }
-
-    if (std::get<0>(result) == Actions::CHECK) {
-      if (std::holds_alternative<std::pair<bool, Reason>>(std::get<1>(result))) {
-        auto [passed, reason] = std::get<std::pair<bool, Reason>>(std::get<1>(result));
-        if (not passed) {
-          if (reason == Reason::nullpointer) {
-            nullpointersObtained++;
-          }
-          if (reason == Reason::completed) {
-            failedChecksCounter++;
-          }
-        }
-      } else {
-        invalidCheckResults++;
-      }
     }
 
     return result;
@@ -172,11 +181,11 @@ struct IotaReductionChecker {
 
   ALPAKA_FN_ACC auto check([[maybe_unused]] const auto& acc, const auto& result) {
     if (std::get<0>(result) != Actions::MALLOC) {
-      return std::make_tuple(Actions::CHECK, Payload(std::make_pair(true, Reason::notApplicable)));
+      return std::make_tuple(CheckerResult(std::make_pair(true, Reason::notApplicable)));
     }
-    auto range = std::get<0>(std::get<1>(result));
+    auto range = std::get<0>(result);
     if (range.data() == nullptr) {
-      return std::make_tuple(Actions::CHECK, Payload(std::make_pair(false, Reason::nullpointer)));
+      return std::make_tuple(CheckerResult(std::make_pair(false, Reason::nullpointer)));
     }
     auto uintRange = convertDataType<uint32_t>(range);
     std::iota(std::begin(uintRange), std::end(uintRange), currentValue);
@@ -185,8 +194,7 @@ struct IotaReductionChecker {
     // into an overflow that the reduction encounters, too.
     auto expected = static_cast<uint32_t>(n * currentValue + n * (n - 1) / 2) ^ currentValue;
     currentValue ^= std::reduce(std::cbegin(uintRange), std::cend(uintRange));
-    return std::make_tuple(+Actions::CHECK,
-                           Payload(std::make_pair(expected == currentValue, Reason::completed)));
+    return std::make_tuple(CheckerResult(std::make_pair(expected == currentValue, Reason::completed)));
   }
 
   ALPAKA_FN_ACC auto accumulate(const auto& acc, const auto& other) {
@@ -230,12 +238,12 @@ namespace setups {
     ALPAKA_FN_ACC auto next([[maybe_unused]] const auto& acc) {
       if (counter >= numAllocations)
         return std::make_tuple(+kitgenbench::Actions::STOP,
-                               Payload(std::span<std::byte, allocationSize>{
+                               MemoryRegion(std::span<std::byte>{
                                    static_cast<std::byte*>(nullptr), allocationSize}));
       pointers[counter] = static_cast<std::byte*>(malloc(allocationSize));
       auto result = std::make_tuple(
           +kitgenbench::Actions::MALLOC,
-          Payload(std::span<std::byte, allocationSize>(pointers[counter], allocationSize)));
+          MemoryRegion(std::span<std::byte>(pointers[counter], allocationSize)));
       counter++;
       return result;
     }
