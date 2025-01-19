@@ -45,7 +45,7 @@ auto makeExecutionDetails() {
   cudaDeviceSetLimit(cudaLimitMallocHeapSize, 1024U * 1024U * 1024U);
 #endif
   uint32_t const numThreadsPerBlock = 256U;
-  uint32_t const numThreads = 4U * numThreadsPerBlock;
+  uint32_t const numThreads = 16U * numThreadsPerBlock;
   auto workdiv = [numThreads, numThreadsPerBlock]() -> alpaka::WorkDivMembers<Dim, Idx> {
     if constexpr (std::is_same_v<alpaka::AccToTag<Acc>, alpaka::TagCpuSerial>) {
       return {{1U}, {1U}, {numThreads}};
