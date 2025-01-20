@@ -168,8 +168,8 @@ constexpr auto isSpan(T<TType, TExtent>) {
 
 template <typename TNew, typename TOld, std::size_t TExtent>
 constexpr auto convertDataType(std::span<TOld, TExtent>& range) {
-  return std::span<TNew>(
-      reinterpret_cast<TNew*>(range.data()), range.size() * sizeof(TOld) / sizeof(TNew));
+  return std::span<TNew>(reinterpret_cast<TNew*>(range.data()),
+                         range.size() * sizeof(TOld) / sizeof(TNew));
 }
 
 struct IotaReductionChecker {
@@ -233,8 +233,7 @@ template <typename T> struct AcumulateChecksProvider {
 };
 
 namespace setups {
-  template<uint32_t size>
-  struct MultiSetupMallocMCRecipe {
+  template <uint32_t size> struct MultiSetupMallocMCRecipe {
     ALPAKA_FN_ACC MultiSetupMallocMCRecipe(std::tuple<MyAllocatorHandle> handleInTuple)
         : handle{std::get<0>(handleInTuple)} {}
     MyAllocatorHandle handle;
@@ -245,13 +244,13 @@ namespace setups {
 
     ALPAKA_FN_ACC auto next([[maybe_unused]] const auto& acc) {
       if (counter >= numAllocations)
-        return std::make_tuple(+kitgenbench::Actions::STOP,
-                               Payload(std::span<std::byte>{
-                                   static_cast<std::byte*>(nullptr), allocation_size}));
+        return std::make_tuple(
+            +kitgenbench::Actions::STOP,
+            Payload(std::span<std::byte>{static_cast<std::byte*>(nullptr), allocation_size}));
       pointers[counter] = static_cast<std::byte*>(handle.malloc(acc, allocation_size));
-      auto result = std::make_tuple(
-          +kitgenbench::Actions::MALLOC,
-          Payload(std::span<std::byte>(pointers[counter], allocation_size)));
+      auto result
+          = std::make_tuple(+kitgenbench::Actions::MALLOC,
+                            Payload(std::span<std::byte>(pointers[counter], allocation_size)));
       counter++;
       return result;
     }
@@ -303,12 +302,12 @@ namespace setups {
 
   using ALLOCATION_SIZES = std::integer_sequence<uint32_t, 16U, 32U, 128U, 256U, 512U, 1024U>;
 
-  template<uint32_t... sizes>
+  template <uint32_t... sizes>
   auto composeSetups(auto allocatorHandle, std::integer_sequence<uint32_t, sizes...>) {
     auto execution = makeExecutionDetails();
-    return std::make_tuple(
-      setup::composeSetup((std::stringstream{} << "Single size: " << sizes).str(), execution, 
-      makeInstructionDetails<Acc, sizes>(execution.device, allocatorHandle), {})...);
+    return std::make_tuple(setup::composeSetup(
+        (std::stringstream{} << "Single size: " << sizes).str(), execution,
+        makeInstructionDetails<Acc, sizes>(execution.device, allocatorHandle), {})...);
   }
 }  // namespace setups
 
@@ -344,7 +343,7 @@ auto main() -> int {
   auto execution = makeExecutionDetails();
   MyAllocator allocator = setupAllocator(execution.device, HEAP_SIZE);
   auto setup = setups::composeSetups(allocator.getAllocatorHandle(), setups::ALLOCATION_SIZES{});
-  auto benchmarkReports = std::apply([](auto&&... args) {return runBenchmarks(args...); }, setup);
+  auto benchmarkReports = std::apply([](auto&&... args) { return runBenchmarks(args...); }, setup);
   auto report = composeReport(metadata, benchmarkReports);
   output(report);
   return EXIT_SUCCESS;
